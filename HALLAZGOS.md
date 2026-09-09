@@ -184,15 +184,15 @@ Respuesta: `choices[].message.content`.
 Códigos de error que el script distingue: `401` (no has iniciado sesión),
 `402` (sin créditos), `429` (demasiadas peticiones).
 
-> ⚠️ **Salvedad sobre esta sección.** `player2.game` está bloqueado por el proxy de
-> red desde donde se escribió el spike, así que la doc oficial no se pudo leer
-> directamente. Lo de arriba sale del OpenAPI completo de Player2, leído desde una
-> copia espejo en un repositorio de terceros. Es coherente y detallado, pero es una
-> instantánea que podría estar desfasada. Por eso `spike.py` hace primero un
-> `GET /v1/health`: si esa llamada responde, la base y el puerto están confirmados
-> en vivo contra tu instalación.
-
----
+> ✅ **Verificado después contra la instancia real.** Cuando se escribió esta sección,
+> `player2.game` estaba bloqueado por el proxy de red y los datos salieron de una copia
+> espejo del OpenAPI en un repositorio de terceros. Ese riesgo ya está cerrado: el spec
+> se descargó de `http://127.0.0.1:4315/v1/openapi.json` (119 792 bytes, 47 rutas,
+> OpenAPI 3.1.0) y **todo lo de arriba coincide**: base `/v1`, puerto 4315, las rutas de
+> `api.port` por plataforma, el header `player2-game-key`, el esquema de petición
+> completo, y la ausencia total de `Authorization`/`Bearer` en el documento, que
+> confirma que la API local no lleva clave. Lo que **no** coincide es el comportamiento
+> real de los errores: ver la sección E6 de la fase 1.
 
 ## Decisión: no se usó `dfhack-client-python`
 
@@ -569,8 +569,14 @@ Tres correcciones a lo que este documento afirmaba antes:
    una lista vacía es error del cliente. Consecuencia práctica: **nunca enviar
    `messages` vacío**, y no tratar todo `500` como «reintentar más tarde», porque este
    es determinista y reintentarlo no arregla nada.
-3. **Los roles válidos son cuatro**: `user`, `assistant`, `system` y `developer`. El
-   cuarto no aparecía en la documentación de la que se copió esta sección.
+3. **El spec se contradice a sí mismo con los roles.** El enum `Role` declara **cinco**
+   valores — `user`, `assistant`, `system`, `developer`, `tool` — pero la descripción de
+   `Message.role`, en ese mismo documento, dice literalmente *"must be one of user,
+   assistant, system, developer"*: cuatro. El mensaje de error real que devolvió el
+   servidor quedó cortado en nuestro log justo en `develope`, así que **no sabemos cuál
+   de los dos hace caso la implementación**. Para el proyecto da igual: solo se usan
+   `system` y `user`. Pero si algún día hace falta `tool`, hay que probarlo antes de
+   confiar en él.
 
 El `client_version` sigue siendo `0.10.78` y `/v1/health` responde `200`.
 
