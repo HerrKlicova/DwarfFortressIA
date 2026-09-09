@@ -9,6 +9,8 @@ corre en la misma maquina (Player2) y devuelve la respuesta al log de anuncios.
   python df_llm.py listar [n]      n enanos, resumen por linea
   python df_llm.py hablar [n]      elige un enano, le hace hablar y lo anuncia
   python df_llm.py hablar 3 --seco igual, pero sin escribir en el juego
+  python df_llm.py medir [n]       n llamadas al LLM con el mismo prompt: mediana y rango
+  python df_llm.py enums           que enums traen texto legible de DF
 
 Requiere df_estado.lua en <Dwarf Fortress>/dfhack-config/scripts/.
 No tiene dependencias: solo biblioteca estandar.
@@ -385,6 +387,13 @@ def _mejores_habilidades(habilidades, tope=TOPE_HABILIDADES):
     return sorted(habilidades, key=lambda h: h.get("nivel_n", -1), reverse=True)[:tope]
 
 
+def _txt(d, por_defecto="?"):
+    """Prefiere el texto legible sobre el identificador de maquina. DF trae
+    captions reales para unit_thought_type ("after seeing somebody die"); para
+    los demas el lado Lua humaniza el identificador."""
+    return d.get("txt") or d.get("n") or por_defecto
+
+
 def construir_prompt(enano, instruccion=None):
     """Convierte un enano en un prompt acotado y legible."""
     partes = ["Eres %s, %s, de %s anos, en una fortaleza enana."
@@ -409,34 +418,38 @@ def construir_prompt(enano, instruccion=None):
     rasgos = _rasgos_marcados(enano.get("rasgos", []))
     if rasgos:
         partes.append("Rasgos tuyos que destacan: "
-                      + ", ".join("%s (%d de 100)" % (r["n"], r["v"]) for r in rasgos) + ".")
+                      + ", ".join("%s (%d de 100)" % (_txt(r), r["v"]) for r in rasgos) + ".")
 
     pens = (enano.get("pensamientos") or [])[-TOPE_PENSAMIENTOS:]
     if pens:
         partes.append("Lo que has sentido ultimamente: "
-                      + "; ".join("%s por %s" % (p.get("emocion"), p.get("causa"))
+                      + "; ".join(("%s %s" % (p.get("emocion_txt") or p.get("emocion", ""),
+                                              p.get("causa_txt") or p.get("causa", ""))).strip()
                                   for p in pens) + ".")
 
     rel = enano.get("relaciones") or []
     if rel:
-        partes.append("Personas que te importan: "
-                      + ", ".join("%s (%s)" % (r.get("quien"), r.get("tipo")) for r in rel) + ".")
+        partes.append("Personas de tu vida: "
+                      + ", ".join("%s (%s)" % (r.get("quien"), _txt(r, r.get("tipo", "")))
+                                  for r in rel) + ".")
 
     hab = _mejores_habilidades(enano.get("habilidades", []))
     if hab:
         partes.append("Se te da bien: "
-                      + ", ".join("%s (%s)" % (h["n"], h.get("nivel", "?")) for h in hab) + ".")
+                      + ", ".join("%s (%s)" % (_txt(h), h.get("nivel", "?")) for h in hab) + ".")
 
     # unitpref_type tiene pocos valores, asi que 18 preferencias se agrupan en
     # unos pocos tipos repetidos. Sin deduplicar, el prompt dice seis veces lo mismo.
-    pref = list(dict.fromkeys(enano.get("preferencias") or []))[:TOPE_PREFERENCIAS]
+    pref = list(dict.fromkeys(_txt(x) for x in (enano.get("preferencias") or [])))
     if pref:
-        partes.append("Te gustan cosas de estos tipos: " + ", ".join(pref) + ".")
+        partes.append("Te gustan cosas de estos tipos: "
+                      + ", ".join(pref[:TOPE_PREFERENCIAS]) + ".")
 
     partes.append(instruccion or
-                  "Habla en primera persona, en espanol, en DOS frases coherentes "
-                  "con todo lo anterior. Sin comillas y sin repetir estos datos "
-                  "tal cual: haz que suenen a alguien hablando.")
+                  "Di un pensamiento tuyo en voz alta, en primera persona y en espanol, "
+                  "en DOS frases. Hablas para ti mismo mientras trabajas: NO te dirijas "
+                  "a nadie, no saludes y no escribas una carta, aunque menciones a "
+                  "alguien. Sin comillas, y sin repetir estos datos tal cual.")
     return "\n".join(partes)
 
 
@@ -484,7 +497,46 @@ def orden_hablar(df, args):
             print("    anunciado en %d linea(s) del log" % r.get("lineas", 0))
 
 
-ORDENES = {"estado": orden_estado, "listar": orden_listar, "hablar": orden_hablar}
+def orden_enums(df, _args):
+    """Que enums traen caption real de DF y cuales hay que humanizar."""
+    d = df._json("enums")
+    for e in d.get("enums", []):
+        estado = "CAPTION REAL" if e.get("caption") else \
+                 ("solo identificador" if e.get("existe") else "NO EXISTE en esta build")
+        print("  %-26s %-22s %s" % (e["tipo"], estado, e.get("muestra") or ""))
+
+
+def orden_medir(df, args):
+    """Re-mide la latencia con el metodo de la fase 1: N vueltas, mediana y
+    rango. Sirve para saber si los 1,4 s del servicio son reales o ruido."""
+    import statistics
+    vueltas = int(args[0]) if args and args[0].isdigit() else 5
+
+    d = df.enanos(n=1, detalle="completo", pensamientos=TOPE_PENSAMIENTOS)
+    enano = d["enanos"][0]
+    prompt = construir_prompt(enano)
+    p2 = Player2()
+    print("Enano: %s, %s" % (enano["nombre"], enano["profesion"]))
+    print("Prompt: %d caracteres" % len(prompt))
+    print("Referencia de la fase 1: prompt de 4887 car. -> 0,93-1,04 s\n")
+
+    tiempos, largos = [], []
+    for i in range(vueltas):
+        t0 = time.perf_counter()
+        texto = p2.completar([{"role": "user", "content": prompt}])
+        dt = time.perf_counter() - t0
+        tiempos.append(dt)
+        largos.append(len(texto))
+        print("  vuelta %d  %.3f s  respuesta %d car." % (i + 1, dt, len(texto)))
+
+    print("\n  mediana %.3f s   min %.3f   max %.3f   respuesta media %d car."
+          % (statistics.median(tiempos), min(tiempos), max(tiempos),
+             sum(largos) // len(largos)))
+    print("  ultima respuesta: %s" % texto)
+
+
+ORDENES = {"estado": orden_estado, "listar": orden_listar, "hablar": orden_hablar,
+           "enums": orden_enums, "medir": orden_medir}
 
 
 def main(argv):

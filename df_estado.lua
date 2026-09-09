@@ -63,6 +63,25 @@ local function enum(tipo, valor)
     return tostring(valor)
 end
 
+-- Convierte un identificador de maquina en algo que un LLM pueda leer:
+-- 'WatchPerform' -> 'watch perform', 'ANXIETY_PROPENSITY' -> 'anxiety propensity'.
+local function humanizar(id)
+    local t = tostring(id):gsub('_', ' ')
+    t = t:gsub('(%l)(%u)', '%1 %2'):gsub('(%u)(%u%l)', '%1 %2')
+    return t:lower()
+end
+
+-- Texto legible de un valor de enum. DF trae captions de verdad para algunos
+-- enums (unit_thought_type tiene 281 con prosa como "after seeing somebody
+-- die"); cuando no hay, se humaniza el identificador. Nunca se inventa.
+local function enum_txt(tipo, valor)
+    local cap = try(function() return df[tipo].attrs[valor].caption end, nil)
+    if type(cap) == 'string' and cap ~= '' then
+        return (cap:gsub('%[(.-)%]', '%1'))   -- "[somebody]" son huecos de DF
+    end
+    return humanizar(enum(tipo, valor))
+end
+
 local function estado_base()
     return {
         mundo = try(function() return dfhack.isWorldLoaded() end, false),
@@ -119,19 +138,30 @@ local function enano_tabla(u, detalle, max_pens)
 
     if alma then
         cada(try(function() return alma.personality.traits end, nil), function(v, i)
-            e.rasgos[#e.rasgos + 1] = {n = enum('personality_facet_type', i), v = math.floor(v)}
+            e.rasgos[#e.rasgos + 1] = {
+                n = enum('personality_facet_type', i),
+                txt = enum_txt('personality_facet_type', i),
+                v = math.floor(v),
+            }
         end)
 
         cada(try(function() return alma.personality.emotions end, nil), function(m)
+            local tipo_e = try(function() return m.type end, -1)
+            local causa_e = try(function() return m.thought end, -1)
             e.pensamientos[#e.pensamientos + 1] = {
-                emocion = enum('emotion_type', try(function() return m.type end, -1)),
-                causa   = enum('unit_thought_type', try(function() return m.thought end, -1)),
-                fuerza  = math.floor(try(function() return m.strength end, 0)),
+                emocion     = enum('emotion_type', tipo_e),
+                emocion_txt = enum_txt('emotion_type', tipo_e),
+                causa       = enum('unit_thought_type', causa_e),
+                causa_txt   = enum_txt('unit_thought_type', causa_e),
+                fuerza      = math.floor(try(function() return m.strength end, 0)),
             }
         end, max_pens)
 
         cada(try(function() return alma.preferences end, nil), function(p)
-            e.preferencias[#e.preferencias + 1] = enum('unitpref_type', try(function() return p.type end, -1))
+            local tp = try(function() return p.type end, -1)
+            e.preferencias[#e.preferencias + 1] = {
+                n = enum('unitpref_type', tp), txt = enum_txt('unitpref_type', tp),
+            }
         end)
 
         cada(try(function() return alma.skills end, nil), function(s)
@@ -143,8 +173,10 @@ local function enano_tabla(u, detalle, max_pens)
             if nivel_n == nil then
                 nivel_n = tonumber(try(function() return df.skill_rating[bruto] end, -1)) or -1
             end
+            local sid = try(function() return s.id end, -1)
             e.habilidades[#e.habilidades + 1] = {
-                n = enum('job_skill', try(function() return s.id end, -1)),
+                n = enum('job_skill', sid),
+                txt = enum_txt('job_skill', sid),
                 nivel = enum('skill_rating', bruto),
                 nivel_n = math.floor(nivel_n),
             }
@@ -156,6 +188,7 @@ local function enano_tabla(u, detalle, max_pens)
             local otro = try(function() return df.unit.find(id) end, nil)
             e.relaciones[#e.relaciones + 1] = {
                 tipo = enum('unit_relationship_type', i),
+                txt = enum_txt('unit_relationship_type', i),
                 quien = otro and dfstr(nombre_de(otro)) or ('unidad ' .. tostring(id)),
             }
         end
@@ -237,4 +270,31 @@ if sub == 'anuncio' then
     return
 end
 
-fallo('uso: df_estado estado | enanos [n=] [desde=] [detalle=] [pensamientos=] | anuncio <texto>')
+-- ---------------------------------------------------------------- enums
+-- Dice que enums traen caption real de DF y cuales hay que humanizar. Es la
+-- unica forma de saberlo sin suponer: se pregunta a la build instalada.
+if sub == 'enums' then
+    local r = {enums = {}}
+    for _, tipo in ipairs({'unit_thought_type', 'emotion_type', 'personality_facet_type',
+                           'job_skill', 'skill_rating', 'unitpref_type',
+                           'unit_relationship_type', 'value_type'}) do
+        local existe = try(function() return df[tipo] ~= nil end, false)
+        local con_caption, muestra = false, nil
+        if existe then
+            for v = 0, 40 do
+                local cap = try(function() return df[tipo].attrs[v].caption end, nil)
+                if type(cap) == 'string' and cap ~= '' then
+                    con_caption = true
+                    muestra = enum(tipo, v) .. ' -> ' .. cap
+                    break
+                end
+            end
+        end
+        r.enums[#r.enums + 1] = {tipo = tipo, existe = existe,
+                                 caption = con_caption, muestra = muestra}
+    end
+    responder(r)
+    return
+end
+
+fallo('uso: df_estado estado | enums | enanos [n=] [desde=] [detalle=] [pensamientos=] | anuncio <texto>')
