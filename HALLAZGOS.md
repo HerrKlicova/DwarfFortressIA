@@ -459,6 +459,88 @@ Añadir el contexto costó ~0,1 s. Sigue de sobra para uso interactivo.
 - Qué ocurre si DF está pausado, o si se descarga la partida con el socket abierto.
 - Textos largos: `showAnnouncement` no se ha probado con más de una línea.
 
+## FASE 1 — Cerrar incógnitas (en curso)
+
+Ejecutado el 2026-09-09 contra la instalación real. Instrumento: `dfhack_medir.lua`
+y `medir.py`, sin tocar el spike.
+
+### E1 · Latencia con prompt largo ✅
+
+Enano `Tulon Åblelardes`, `Diagnoser`, 40 años. Volcado completo: **50 rasgos,
+69 pensamientos, 3 relaciones, 18 preferencias, 27 habilidades**.
+
+| | Prompt mínimo | Prompt largo |
+|---|---|---|
+| Tamaño | 153 caracteres | **4 887 caracteres** (32×) |
+| Mediana | 0,486 s | **0,952 s** |
+| Rango | 0,455 – 0,577 s | 0,932 – 1,038 s |
+| Respuesta | ~57 caracteres | ~549 caracteres |
+
+**Coste de meter todo el contexto: +0,465 s, exactamente 2,0×.** Cinco vueltas
+intercaladas de cada tipo en la misma ejecución, así que la comparación es limpia;
+los 0,56 s históricos eran una muestra suelta de otro día.
+
+Escala mucho mejor de lo que sugería el tamaño: 32 veces más prompt cuesta solo el
+doble de tiempo. La latencia la domina la generación, no la lectura del contexto.
+
+**El lado Lua tarda 0,003 s en volcarlo todo.** Es 300 veces menos que el LLM. Para
+la fase 2 esto significa que **el cuello de botella es exclusivamente el modelo**:
+no hay que optimizar la extracción de datos, hay que gestionar la espera del LLM.
+
+Y el resultado se apoya en datos reales, no en relleno — cita a la esposa (`Tobul`),
+el estrés bajo, las habilidades de tallar piedra y poesía, y hasta un rasgo alto:
+
+> *Soy Tulon Åblelardes, un enano de 40 años... Aunque extraño profundamente a mi
+> esposa Tobul y siento una tristeza persistente por nuestra separación, mantengo una
+> calma inusual con un estrés tan bajo que casi me siento en paz.*
+
+Nota: 69 pensamientos frente a los 28 del enano del spike. **El volumen varía mucho
+por individuo**, así que el prompt largo no tiene tamaño fijo y habrá que acotarlo.
+
+### E2 · Dwarf Fortress en pausa ✅ No bloquea nada
+
+| Operación | Con el juego pausado |
+|---|---|
+| `estado` (ida y vuelta) | 0,005 s |
+| Lectura completa | 0,018 s (lado Lua: 0,002 s) |
+| Anuncio | Funciona, 0,014 s |
+| `frame_counter` tras 2 s | 1759 → 1759 (pausa real confirmada) |
+
+**`RunCommand` responde con normalidad con el juego en pausa.** No se cuelga, no se
+encola, no espera a que se reanude. Es una buena noticia para la arquitectura: se
+puede leer y escribir mientras el jugador tiene el juego parado.
+
+### E4 · Bloqueo — parcial ⚠️
+
+Solo se llegó a medir **FPS en reposo: 100,1** (402 frames en 4,02 s). El resto se
+abortó por un fallo del instrumento, no del juego (ver abajo).
+
+### E3, E5, E6 — pendientes
+
+No llegaron a ejecutarse: van después del E4 en el orden.
+
+### Trampa nueva: `string.format` de Lua respeta el locale
+
+El instrumento se cayó en el E4 con `could not convert string to float: '0,0000'`.
+
+`string.format('%.4f', x)` en Lua pasa por el `printf` de C, que **usa el separador
+decimal del locale**. En un Windows en español DFHack devuelve `0,0020` con coma, y
+`float()` de Python lo rechaza. Python no tiene ese problema porque no usa locale al
+formatear, y por eso sus propios números salían con punto en la misma línea de log:
+
+```
+Lectura completa en pausa: ... ida y vuelta 0.018 s   lado Lua 0,0020 s
+                                            ↑ Python           ↑ Lua
+```
+
+Arreglado emitiendo **microsegundos enteros** desde Lua (`%d` no se ve afectado por
+el locale) y parseando tolerante en Python. **Dwarf Fortress no se cayó**: el
+traceback era de Python y el socket seguía sano.
+
+Es la misma familia que la trampa de CP437: **el lado Lua no está en el mismo mundo
+de convenciones que el lado Python**, y cada vez que cruzamos texto o números entre
+los dos hay que decidir explícitamente el formato.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a

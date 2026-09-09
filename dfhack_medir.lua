@@ -23,6 +23,14 @@ local args = {...}
 local sub = args[1]
 
 local function out(s) print(tostring(s)) end
+
+-- OJO: string.format('%.4f') en Lua pasa por printf de C, que RESPETA EL
+-- LOCALE. En un Windows en espanol devuelve "0,0020" con coma decimal y el
+-- lado Python revienta al hacer float(). Los enteros con %d no se tocan
+-- nunca, asi que todos los tiempos viajan en microsegundos enteros.
+local function micros(seg)
+    return string.format('%d', math.floor((seg or 0) * 1000000))
+end
 local function dfstr(s) return dfhack.df2utf(tostring(s)) end
 
 -- Todo acceso a campo va envuelto: si un nombre no existe en esta build,
@@ -81,7 +89,7 @@ if sub == 'estado' then
     out('CIUDADANOS|' .. tostring(try(function()
         local c = dfhack.units.getCitizens(); return c and #c or 0
     end, -1)))
-    out('RELOJ|' .. string.format('%.4f', os.clock()))
+    out('RELOJ_US|' .. micros(os.clock()))
     return
 end
 
@@ -169,7 +177,7 @@ if sub == 'contexto' then
         end
     end
 
-    out('LUA_SEG|' .. string.format('%.4f', os.clock() - t0))
+    out('LUA_US|' .. micros(os.clock() - t0))
     return
 end
 
@@ -206,7 +214,7 @@ if sub == 'bench' then
     local f1 = try(function() return df.global.world.frame_counter end, -1)
     out('ENANOS|' .. tostring(n))
     out('CAMPOS|' .. tostring(campos))
-    out('LUA_SEG|' .. string.format('%.4f', dt))
+    out('LUA_US|' .. micros(dt))
     out('FRAME_INI|' .. tostring(f0))
     out('FRAME_FIN|' .. tostring(f1))
     return
@@ -224,7 +232,7 @@ if sub == 'anuncio' then
         dfhack.gui.showAnnouncement(dfhack.utf2df(text), COLOR_YELLOW, true)
     end)
     if ok then
-        out('OK|BYTES|' .. tostring(#text) .. '|LUA_SEG|' .. string.format('%.4f', os.clock() - t0))
+        out('OK|BYTES|' .. tostring(#text) .. '|LUA_US|' .. micros(os.clock() - t0))
     else
         out('ERROR|' .. tostring(err))
     end

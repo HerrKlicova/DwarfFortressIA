@@ -12,7 +12,8 @@ ANTES DE EJECUTAR
   4. Player2 abierto con sesion iniciada.
   5. GUARDA LA PARTIDA. El ultimo experimento descarga el mundo y cierra DF.
 
-     python medir.py
+     python medir.py            <- los seis, en orden
+     python medir.py 4 5 6 3    <- solo esos, para retomar sin repetir
 
 Los resultados se escriben en mediciones.txt SEGUN SE OBTIENEN, no al final:
 si DF se cae en el experimento 3 no perdemos los cinco anteriores.
@@ -22,6 +23,7 @@ ORDEN: del mas seguro al mas destructivo. El 3 va el ultimo a proposito.
 
 import json
 import re
+import sys
 import statistics
 import time
 import urllib.error
@@ -83,6 +85,23 @@ def uno(d, k, por_defecto="?"):
     return d.get(k, [por_defecto])[0]
 
 
+def num(x, por_defecto=0.0):
+    """Tolera coma decimal. El string.format de Lua pasa por printf de C, que
+    respeta el locale: en un Windows en espanol devuelve "0,0020"."""
+    try:
+        return float(str(x).replace(",", "."))
+    except (TypeError, ValueError):
+        return por_defecto
+
+
+def lua_seg(d):
+    """Segundos consumidos por el lado Lua. LUA_US son microsegundos enteros,
+    que printf no toca; LUA_SEG es el formato viejo, por si queda alguno."""
+    if "LUA_US" in d:
+        return num(uno(d, "LUA_US", "0")) / 1000000.0
+    return num(uno(d, "LUA_SEG", "0"))
+
+
 def resumen(nombre, muestras):
     log("  %-22s n=%d  mediana=%.3f s  min=%.3f  max=%.3f"
         % (nombre, len(muestras), statistics.median(muestras), min(muestras), max(muestras)))
@@ -108,7 +127,7 @@ def e1_latencia(sock):
     log("  Recogido: %d rasgos, %d pensamientos, %d relaciones, %d preferencias, %d habilidades"
         % (len(d.get("RASGO", [])), len(d.get("PENSAMIENTO", [])), len(d.get("RELACION", [])),
            len(d.get("PREFERENCIA", [])), len(d.get("HABILIDAD", []))))
-    log("  Tiempo del lado Lua para este volcado: %s s" % uno(d, "LUA_SEG"))
+    log("  Tiempo del lado Lua para este volcado: %.4f s" % lua_seg(d))
 
     corto = ("Eres %s, %s, de %s anos, en una fortaleza enana. "
              "Di UNA sola frase en primera persona, en espanol. "
@@ -191,8 +210,8 @@ def e2_pausa(sock):
 
     lineas, err, dt = cmd(sock, "contexto", "0")
     d2 = parsea(lineas)
-    log("  Lectura completa en pausa: error=%s  ida y vuelta %.3f s  lado Lua %s s"
-        % (err, dt, uno(d2, "LUA_SEG")))
+    log("  Lectura completa en pausa: error=%s  ida y vuelta %.3f s  lado Lua %.4f s"
+        % (err, dt, lua_seg(d2)))
     log("  Enano leido en pausa: %s" % uno(d2, "NOMBRE"))
 
     lineas, err, dt = cmd(sock, "anuncio", "Prueba de anuncio con el juego en pausa.")
@@ -234,7 +253,7 @@ def e4_bloqueo(sock):
         if err is not None:
             log("  bench %d: error %d" % (n, err))
             continue
-        lua = float(uno(d, "LUA_SEG", "0"))
+        lua = lua_seg(d)
         enanos = int(uno(d, "ENANOS", "0"))
         campos = int(uno(d, "CAMPOS", "0"))
         log("  bench %-2d enanos: lado Lua %.4f s (%.4f s/enano, %d campos) | ida y vuelta total %.3f s"
@@ -417,7 +436,15 @@ def e3_descarga(sock):
 
 
 # ====================================================================== main
+EXPERIMENTOS = {}      # se rellena abajo, cuando ya existen las funciones
+ORDEN = ["1", "2", "4", "5", "6", "3"]   # del mas seguro al mas destructivo
+
+
 def main():
+    global sel
+    sel = [a for a in sys.argv[1:] if a in ORDEN] or list(ORDEN)
+    print("Experimentos a ejecutar: %s" % " ".join(sel))
+
     with open(RES, "a", encoding="utf-8") as f:
         f.write("\n\n" + "#" * 70 + "\n")
         f.write("# MEDICIONES FASE 1 -- %s\n" % time.strftime("%Y-%m-%d %H:%M:%S"))
@@ -441,12 +468,11 @@ def main():
         return 1
 
     try:
-        e1_latencia(sock)
-        e2_pausa(sock)
-        e4_bloqueo(sock)
-        e5_anuncios(sock)
-        e6_player2()
-        e3_descarga(sock)     # el ultimo: cierra el juego
+        for clave in sel:
+            if clave == "6":
+                e6_player2()
+            else:
+                EXPERIMENTOS[clave](sock)
     finally:
         try:
             spike.dfhack_quit(sock)
@@ -456,6 +482,9 @@ def main():
     titulo("FIN. Resultados en %s -- pegaselos a Claude." % RES)
     return 0
 
+
+EXPERIMENTOS = {"1": e1_latencia, "2": e2_pausa, "3": e3_descarga,
+                "4": e4_bloqueo, "5": e5_anuncios}
 
 if __name__ == "__main__":
     raise SystemExit(main())
