@@ -891,6 +891,62 @@ prompt, no en el modelo: el niño quejándose de la cantera, las cartas a la esp
 cifras recitadas y ahora la muletilla y el nombre de relleno. **El modelo devuelve lo
 que le das.**
 
+### Verificación: la muletilla desapareció
+
+| | Antes | Después |
+|---|---|---|
+| Respuestas con «mientras» | **16 de 18** | **2 de 18** |
+| Que **empiezan** por «Mientras» | **14 de 18** | **0** |
+
+Las dos restantes lo usan a mitad de frase, que es castellano normal. Aperturas ahora:
+*Me siento · La brisa fría · La verdad es · Los hongos · Por fin · La paz*.
+`Unidad 338` tampoco reaparece.
+
+### La métrica de solapamiento es inconcluyente, y eso es el resultado
+
+| Rasgos | Ejecución 1 | Ejecución 2 |
+|---|---|---|
+| 3 | 0,059 | 0,046 |
+| 5 | **0,068** (el peor) | **0,031** (el mejor) |
+| 8 | 0,064 | 0,041 |
+
+**El orden se invierte entre tiradas.** Con 6 enanos y una muestra por configuración, la
+varianza entre ejecuciones supera la diferencia entre configuraciones: la métrica no
+distingue 3 de 5 de 8. Para que sirviera harían falta más enanos y varias repeticiones.
+
+Lo que sí es consistente en ambas tiradas es la **riqueza**:
+
+| Rasgos | Longitud media | Palabras distintas |
+|---|---|---|
+| 3 | 210 car. | 26 |
+| 5 | 217 car. | 27 |
+| 8 | **237 car.** | **29** |
+
+**Decisión: se queda en 8 rasgos.** Y conviene ser explícito en que **no lo sostiene la
+métrica de solapamiento**, que salió inconcluyente, sino la riqueza medida más la
+lectura: a 8 rasgos aparece la duda sobre uno mismo (*"me pregunto si no estaré
+demasiado apegado a Tobul"*, *"echo de menos no sentir tanto esta paz vacía"*) que a 3
+no sale.
+
+Ninguno de los dos temores era cierto: ni un rasgo extremo secuestra la salida con 8,
+ni bajar a 3 homogeneiza. **La variedad no sale de los rasgos**, sale de las relaciones,
+el oficio, el estrés y el suceso que dispara.
+
+### Coherencia entre enanos, sin haberla programado
+
+Del mismo grupo, dos enanos casados entre sí:
+
+> **Tirist**: *"Cada vez que pienso en **Tosid** me invade una calidez tranquila, aunque a
+> veces esa misma calma me hace preguntarme **por qué no soy más efusivo con ella**"*
+
+> **Tosid**: *"**Tirist** merece algo mejor que **un marido que se queda mirando el
+> vacío** después de cada guardia"*
+
+Cada uno reflexiona sobre la misma relación desde su lado y **coinciden en el
+diagnóstico**. No hay nada en el código que lo produzca: sale de que ambos leen el mismo
+`relationship_ids`. Es la señal de que los datos del juego, bien traducidos, bastan para
+sostener la ilusión.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a
