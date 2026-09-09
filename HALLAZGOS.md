@@ -3,16 +3,15 @@
 Entorno objetivo: Dwarf Fortress 53.16 (Steam), DFHack 53.16-r1.1, app de escritorio
 Player2, Windows, Python 3.14.7.
 
-## Estado: leído la fuente, no ejecutado contra el juego
+## Estado: ✅ el tubo existe y funciona de punta a punta
 
-Hay que ser claro sobre esto, porque cambia cuánto te puedes fiar de cada línea de
-abajo. Este spike se escribió desde un contenedor Linux **sin acceso a la máquina
-donde corre Dwarf Fortress**. Todo lo marcado ✅ está verificado contra el código
-fuente o la documentación oficial, y el cliente está probado contra dos servidores
-de prueba que implementan el protocolo documentado al pie de la letra. Pero
-**nada se ha ejecutado contra el juego real todavía**.
+Ejecutado con éxito el 2026-09-09 contra la instalación real: Dwarf Fortress 53.16
+(Steam), DFHack 53.16-r1.1, Player2 `0.10.78`, Windows, Python 3.14.7.
 
-Las secciones marcadas 🔲 son las que solo se pueden rellenar ejecutando `spike.py`.
+Los tres pasos pasaron: se leyó un enano vivo de la fortaleza, se llamó al LLM local
+y su respuesta apareció en el log de anuncios del juego. Latencia del LLM: **0,56 s**.
+
+**Veredicto: sí, se puede. Adelante con lo demás.**
 
 ---
 
@@ -230,63 +229,116 @@ el protocolo documentado:
 - Reensamblado de fragmentos tanto si traen `\n` como si no
 - Player2: `/v1/health` correcto, `401` sin sesión, y app cerrada (conexión rechazada)
 
-**No probado ❌** — todo lo que necesita el juego delante:
+**Confirmado después contra el juego real ✅** — todo lo que en su momento quedó
+pendiente por no tener la partida delante:
 
-- Que DFHack cargue `dfhack_spike.lua` y lo exponga como comando
-- Que `dfhack.units.getCitizens()` devuelva algo en tu partida
-- Que `dfhack.translation.translateName()` dé un nombre legible
-- Que el anuncio aparezca de verdad en el log
-- La latencia real de Player2
-- Qué campos de personalidad existen en **tu** build concreta de df-structures
+- Que DFHack cargue `dfhack_spike.lua` y lo exponga como comando → ✅
+- Que `dfhack.units.getCitizens()` devuelva algo en la partida → ✅
+- Que `dfhack.translation.translateName()` dé un nombre legible → ✅ `Udib Nomalardes`
+- Que el anuncio aparezca de verdad en el log → ✅ (con icono de alerta)
+- La latencia real de Player2 → ✅ 0,56 s
+- Qué campos de personalidad existen en esta build → ✅ los 19 sondeados
+
+El único fallo que las pruebas con servidores falsos **no** cazaron fue el del
+separador: los stubs emitían el tabulador tal cual, mientras que DFHack lo pasaba por
+su tabla CP437. Un stub solo prueba lo que tú le programas.
 
 ---
 
-## 🔲 Resultados de la ejecución real
+## ✅ Resultados de la ejecución real
 
-*Rellenar tras ejecutar `python spike.py`.*
+### Qué funcionó
+
+| Paso | Resultado |
+|---|---|
+| Conexión + handshake DFHack | ✅ `127.0.0.1:5000`, sin configurar nada |
+| 1 — leer nombre de enano | ✅ `Udib Nomalardes` (unit id 254) |
+| 1b — sondeo de campos | ✅ **19 de 19 rutas disponibles** |
+| 2 — llamada al LLM local | ✅ `0,56 s` |
+| 3 — anuncio dentro del juego | ✅ visible en el log, con el icono de alerta |
+
+Texto que generó el LLM y que acabó dentro de Dwarf Fortress:
+
+> *Maldito trabajo en la cantera, mis huesos duelen como el demonio.*
+
+### Qué no funcionó (y se arregló)
+
+Un solo fallo, en el primer intento: el script Lua pasaba la línea entera por
+`dfhack.df2utf()`, incluido el tabulador que hacía de separador. DF no trata los
+bytes `0x00-0x1F` como caracteres de control sino como glifos dibujables, y en la
+tabla de DFHack (`library/MiscUtils.cpp:573`) `character_table[9] = 0x25CB`, así que
+el tabulador llegaba convertido en `○` y el cliente no reconocía ninguna línea.
+El dato venía bien; solo se rompía el delimitador.
+
+Arreglado convirtiendo únicamente las cadenas que vienen de DF, y cambiando el
+separador a `|` (`0x7C`), que esa tabla mapea a sí mismo. El mismo fallo habría
+hecho que el paso 3 reportara fracaso **pese a haber inyectado el anuncio
+correctamente**.
 
 ### Latencia del LLM de punta a punta
 
 | Medida | Valor |
 |---|---|
-| `POST /v1/chat/completions` | _pendiente_ |
-| Modelo que sirvió la respuesta | _pendiente_ |
+| `POST /v1/chat/completions` | **0,56 s** |
+| Versión del cliente Player2 (`/v1/health`) | `0.10.78` |
+| Puerto | `4315`, leído de `%APPDATA%\game.player2.client\api.port` |
+
+Es una sola muestra, con un prompt corto y un límite de 15 palabras. Suficiente para
+saber que el orden de magnitud permite uso interactivo, no para dimensionar nada.
 
 ### Campos del enano disponibles de verdad
 
-Salida de `dfhack_spike fields` (paso 1b del script). Esta tabla es la que sustituye
-a la lectura teórica de df-structures por datos de tu instalación:
+Salida real de `dfhack_spike fields` sobre `Udib Nomalardes`. Esta tabla sustituye a
+la lectura teórica de df-structures:
 
-| Ruta | ¿Existe? | Notas |
+| Ruta | ¿Existe? | Qué trajo |
 |---|---|---|
-| `unit.id` | _pendiente_ | |
-| `unit.race` / `caste` / `sex` | _pendiente_ | |
-| `unit.civ_id` / `hist_figure_id` | _pendiente_ | |
-| `unit.relationship_ids` | _pendiente_ | |
-| `unit.status.current_soul` | _pendiente_ | |
-| `soul.skills` | _pendiente_ | |
-| `soul.preferences` | _pendiente_ | |
-| `soul.mental_attrs` | _pendiente_ | |
-| `personality.traits` | _pendiente_ | |
-| `personality.values` | _pendiente_ | |
-| `personality.emotions` (pensamientos) | _pendiente_ | |
-| `personality.dreams` | _pendiente_ | |
-| `personality.stress` | _pendiente_ | |
-| `getReadableName` / `getProfessionName` / `getAge` | _pendiente_ | |
+| `unit.id` | ✅ | number |
+| `unit.race` | ✅ | number |
+| `unit.caste` | ✅ | number |
+| `unit.sex` | ✅ | number |
+| `unit.civ_id` | ✅ | number |
+| `unit.hist_figure_id` | ✅ | number |
+| `unit.relationship_ids` | ✅ | **n=9** |
+| `unit.status.current_soul` | ✅ | compound |
+| `soul.skills` | ✅ | **n=18** |
+| `soul.preferences` | ✅ | **n=18** |
+| `soul.mental_attrs` | ✅ | **n=13** |
+| `personality.traits` | ✅ | **n=50** |
+| `personality.values` | ✅ | n=2 |
+| `personality.emotions` (pensamientos) | ✅ | **n=28** |
+| `personality.dreams` | ✅ | n=1 |
+| `personality.stress` | ✅ | number |
+| `dfhack.units.getReadableName` | ✅ | string |
+| `dfhack.units.getProfessionName` | ✅ | string |
+| `dfhack.units.getAge` | ✅ | number |
 
-### Qué funcionó / qué no
+**19 de 19.** No falló ninguna. Los `n=` bajos en `values` (2) y `dreams` (1) son
+propios de este enano concreto, no un límite de la API.
 
-| Paso | Resultado |
-|---|---|
-| 1 — leer nombre de enano | _pendiente_ |
-| 2 — llamada al LLM | _pendiente_ |
-| 3 — anuncio en el juego | _pendiente_ |
+### Lo que esto significa para lo que venga después
 
-### Veredicto
+1. **La vía Lua es la buena, y está confirmada en vivo.** 50 rasgos de personalidad,
+   28 pensamientos, 18 preferencias, 18 habilidades y 9 relaciones por enano. Es
+   material narrativo de sobra. El RPC estructurado (`ListUnits`) no da nada de esto:
+   si montas la arquitectura encima del protobuf, te quedas sin lo interesante.
+2. **Un solo método RPC basta.** `RunCommand` sobre un script propio en
+   `dfhack-config/scripts/` cubre lectura y escritura. No hizo falta `BindMethod`,
+   ni `RunLua`, ni generar código protobuf.
+3. **Cero dependencias es viable.** El cliente entero son ~60 líneas de stdlib y
+   funcionó a la primera contra el juego real (salvo el fallo del separador).
+4. **0,56 s permite interactividad**, pero habrá que medir con prompts largos, que
+   es lo que pasará en cuanto le metas el contexto de rasgos y pensamientos.
 
-_¿Existe el tubo? Sí / No, y por qué._
+### Lo que sigue sin probarse
 
----
+- **Acentos y `ñ` en el anuncio.** La respuesta que llegó no llevaba ninguno
+  (*"Maldito trabajo en la cantera..."*), así que la conversión UTF-8 → CP437 con
+  `dfhack.utf2df()` está en el código pero **no se ha ejercitado de verdad**. Es lo
+  primero que hay que comprobar, porque en español va a pasar constantemente.
+- Comportamiento con varios enanos, o llamadas repetidas seguidas.
+- Qué ocurre si DF está pausado, o si se descarga la partida con el socket abierto.
+- Textos largos: `showAnnouncement` no se ha probado con más de una línea.
 
 ## Cómo ejecutarlo
 
