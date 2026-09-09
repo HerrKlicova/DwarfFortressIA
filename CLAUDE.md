@@ -122,10 +122,15 @@ contra DFHack o no se ha probado.
   ni relaciones. Todo eso solo se alcanza desde un script Lua.
 - **Nunca sondear con `detalle=completo`.** Son 344 KB y 40 ms de Lua por vuelta: casi
   cuatro frames congelados. Para eso está `detalle=sonda`.
-- **Cada camino de datos hacia el prompt debe traducir sus enums.** La corrección no es
-  global: al añadir `detalle=sonda` se copió el patrón viejo con `enum()` y los
-  identificadores crudos volvieron al prompt (`EUPHORIA Syndrome`), con el modelo
-  repitiéndolos literalmente. Usar siempre `enum_txt()` en lo que acabe en el prompt.
+- **Todo texto de DF pasa por `df_llm.legible()` antes del prompt.** Es un punto de paso
+  obligatorio, no una recomendación: detecta forma de identificador de máquina, lo
+  humaniza y **apunta la fuga en `df_llm.FUGAS`** para que se vea qué camino se saltó la
+  traducción, en vez de taparlo. Los campos que siempre vienen de un enum (rasgo,
+  emoción, causa, habilidad, preferencia, tipo de relación, detalle del evento) se pasan
+  con `siempre_enum=True`, porque la forma sola no distingue `Syndrome` de `Tulon`.
+  En el lado Lua se sigue usando `enum_txt()`; `legible()` es la red por si un camino
+  nuevo lo olvida. **Se puso porque el invariante escrito no bastó**: la misma clase de
+  fallo apareció tres veces en caminos distintos.
 - **Cuidado con las palabras sueltas de la instruccion.** *"Hablas para ti mismo
   mientras trabajas"* hizo que 14 de 18 respuestas empezaran por *"Mientras..."*. Y no se
   arregla diciendo «no uses esa palabra»: nombrarla la vuelve a meter en el contexto.

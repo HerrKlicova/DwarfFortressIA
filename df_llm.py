@@ -21,6 +21,7 @@ proposito: no importa spike.py, que es codigo de usar y tirar.
 
 import json
 import os
+import re
 import random
 import socket
 import struct
@@ -396,11 +397,63 @@ def _mejores_habilidades(habilidades, tope=TOPE_HABILIDADES):
     return sorted(habilidades, key=lambda h: h.get("nivel_n", -1), reverse=True)[:tope]
 
 
+# ------------------------------------------- punto de paso unico
+# Tres veces ha aparecido la misma clase de fallo en un camino NUEVO: el
+# tabulador por df2utf, el indice 0-based, y los enums crudos al anadir
+# detalle=sonda. El invariante escrito en CLAUDE.md no lo impidio, porque
+# depende de que alguien se acuerde. Esto lo impone la estructura: TODO texto
+# que venga de DF cruza por legible() antes de llegar al prompt.
+#
+# No lo arregla en silencio: apunta cada fuga en FUGAS para que se vea que un
+# camino se salto la traduccion, en vez de taparlo.
+
+FUGAS = []
+
+
+def _parece_identificador(t):
+    """Forma de identificador de maquina: EUPHORIA, LIKE_FOOD, WatchPerform."""
+    if " " in t:
+        return False                       # ya es una frase
+    if "_" in t and t == t.upper():
+        return True
+    if t.isupper() and len(t) > 2:
+        return True
+    return bool(re.search(r"[a-z][A-Z]", t))
+
+
+def _humanizar(t):
+    t = t.replace("_", " ")
+    t = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", t)
+    t = re.sub(r"(?<=[A-Z])(?=[A-Z][a-z])", " ", t)
+    return t.lower()
+
+
+def legible(valor, origen="?", siempre_enum=False):
+    """Punto de paso obligatorio para el texto que va al prompt.
+
+    La forma sola no basta: "Syndrome" es una palabra capitalizada sin mayuscula
+    interna, indistinguible de un nombre como "Tulon". Por eso los campos que
+    SIEMPRE vienen de un enum (rasgo, emocion, causa, habilidad, preferencia,
+    tipo de relacion) se marcan con siempre_enum: ahi cualquier token suelto es
+    un identificador, porque los nombres propios viven en otros campos."""
+    t = str(valor if valor is not None else "").strip()
+    if not t:
+        return t
+    sospechoso = _parece_identificador(t) or (siempre_enum and " " not in t)
+    if sospechoso:
+        FUGAS.append((origen, t))
+        return _humanizar(t)
+    return t
+
+
 def _txt(d, por_defecto="?"):
     """Prefiere el texto legible sobre el identificador de maquina. DF trae
     captions reales para unit_thought_type ("after seeing somebody die"); para
     los demas el lado Lua humaniza el identificador."""
-    return d.get("txt") or d.get("n") or por_defecto
+    # rasgos, tipo de relacion, habilidades y preferencias: siempre de enum.
+    # Los nombres propios van en 'quien'/'nombre', que no pasan por aqui.
+    return legible(d.get("txt") or d.get("n") or por_defecto, "campo txt/n",
+                   siempre_enum=True)
 
 
 def construir_prompt(enano, instruccion=None, recuerdos=None, tope_rasgos=None):
@@ -431,9 +484,12 @@ def construir_prompt(enano, instruccion=None, recuerdos=None, tope_rasgos=None):
     pens = (enano.get("pensamientos") or [])[-TOPE_PENSAMIENTOS:]
     if pens:
         partes.append("Lo que has sentido ultimamente: "
-                      + "; ".join(("%s %s" % (p.get("emocion_txt") or p.get("emocion", ""),
-                                              p.get("causa_txt") or p.get("causa", ""))).strip()
-                                  for p in pens) + ".")
+                      + "; ".join(("%s %s" % (
+                          legible(p.get("emocion_txt") or p.get("emocion"),
+                                  "pensamiento.emocion", siempre_enum=True),
+                          legible(p.get("causa_txt") or p.get("causa"),
+                                  "pensamiento.causa", siempre_enum=True))).strip()
+                          for p in pens) + ".")
 
     rel = enano.get("relaciones") or []
     if rel:

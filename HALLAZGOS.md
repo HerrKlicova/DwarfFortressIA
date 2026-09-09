@@ -942,6 +942,31 @@ diagnóstico**. No hay nada en el código que lo produzca: sale de que ambos lee
 `relationship_ids`. Es la señal de que los datos del juego, bien traducidos, bastan para
 sostener la ilusión.
 
+## Revisión externa de la fase 3 — punto de paso único
+
+La revisión señaló que la fuga de enums **es un patrón y no un fallo**: tres veces la
+misma clase de error en un camino nuevo (el tabulador por `df2utf`, el índice 0-based, y
+`enum()` en vez de `enum_txt()` al añadir la sonda). Y que el invariante escrito en
+`CLAUDE.md` no lo impidió, porque depende de que alguien se acuerde.
+
+Implementado `df_llm.legible()`, por el que pasa **todo** texto de DF antes del prompt.
+No lo arregla en silencio: apunta cada fuga en `df_llm.FUGAS` y el vigía las imprime, de
+modo que un camino olvidadizo se delata en vez de quedar tapado.
+
+**Al construirlo apareció una limitación real de la idea.** Detectar por forma
+(`ALL_CAPS`, `CamelCase`, guiones bajos) deja pasar `Syndrome`: una palabra capitalizada
+sin mayúscula interna es indistinguible de un nombre como `Tulon`.
+
+La forma sola no basta, pero **el guardián sí sabe qué campo protege**. Los campos que
+siempre vienen de un enum —rasgo, emoción, causa, habilidad, preferencia, tipo de
+relación, detalle del evento— se marcan con `siempre_enum=True`, y ahí cualquier token
+suelto es un identificador, porque los nombres propios viven en otros campos (`quien`,
+`nombre`), que no cruzan por ese modo.
+
+Verificado: con datos que simulan un camino que olvidó traducir, no sobrevive ningún
+identificador crudo al prompt, los nombres propios quedan intactos y las cinco fugas se
+registran.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a

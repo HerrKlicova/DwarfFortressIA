@@ -229,7 +229,7 @@ class Vigia(object):
                  "con TUS palabras lo que eso significa para ti, en UNA o DOS frases, "
                  "en primera persona y en espanol. Hablas para ti mismo: no te dirijas "
                  "a nadie ni saludes. Sin comillas, sin cifras y sin jerga."
-                 % evento["detalle"])
+                 % df_llm.legible(evento["detalle"], "evento.detalle", siempre_enum=True))
         prompt = df_llm.construir_prompt(enano, instruccion=instr, recuerdos=recuerdos)
 
         self.p2 = self.p2 or df_llm.Player2()
@@ -258,6 +258,12 @@ class Vigia(object):
             print("  [memoria] descartado el historial de %s: era %r y ahora es %r"
                   % (d_["clave"], d_["antes"], d_["ahora"]))
         self.memoria.descartes = []
+
+        if df_llm.FUGAS:
+            for origen, crudo in df_llm.FUGAS:
+                print("  [fuga] %s llego sin traducir: %r (humanizado al vuelo)"
+                      % (origen, crudo))
+            del df_llm.FUGAS[:]
 
         self.cronica.escribir(cuando, enano.get("nombre"), evento["detalle"], texto)
 
