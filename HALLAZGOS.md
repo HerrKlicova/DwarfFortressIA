@@ -316,6 +316,43 @@ la lectura teórica de df-structures:
 **19 de 19.** No falló ninguna. Los `n=` bajos en `values` (2) y `dreams` (1) son
 propios de este enano concreto, no un límite de la API.
 
+### El tubo funciona, pero sin contexto produce mentiras
+
+El primer resultado "bueno" era falso y no se notaba. El LLM dijo:
+
+> *Maldito trabajo en la cantera, mis huesos duelen como el demonio.*
+
+Suena perfecto. Pero el enano elegido, `Udib Nomalardes`, **es un niño de 8 años**, y
+en Dwarf Fortress los niños no tienen oficio: DFHack los clasifica con estado `CHILD`
+y los salta con `continue` en todos los bucles de asignación de labores
+(`plugins/autolabor/autolabor.cpp:513` y `:619`), sin excepción.
+`Units::isChild()` es literalmente `profession == profession::CHILD`
+(`library/modules/Units.cpp:310`).
+
+No fue una alucinación del modelo. Fue **culpa del prompt**, que decía exactamente:
+
+> *"Eres un enano de Dwarf Fortress llamado Udib Nomalardes. Di una sola frase corta,
+> en español, quejándote del trabajo."*
+
+Un nombre y una orden de quejarse de un trabajo que no existe. El modelo no tenía de
+dónde sacar nada más, así que se inventó la cantera. Cualquier LLM habría hecho lo mismo.
+
+**Es el hallazgo más importante del spike**, y es fácil que pase desapercibido porque
+la salida *parece* correcta. Un tubo que funciona mecánicamente puede producir texto
+plausible y falso, y sin conocer el juego no lo detectas. Aquí lo detectó el usuario,
+no el script.
+
+El arreglo (ya aplicado): el script Lua manda profesión, edad, si es adulto, estrés y
+los pensamientos recientes, y el prompt se construye con eso. Si el enano es un niño,
+se le dice explícitamente que no tiene oficio.
+
+Dos fallos más que salieron al arreglarlo, ambos encontrados **ejecutando** la lógica
+Lua contra un DFHack falso, no leyéndola:
+
+- Se cogía siempre `citizens[1]`, o sea el mismo enano en cada ejecución.
+- Al pasar a elegir al azar, `math.randomseed(os.time())` seguía devolviendo el mismo:
+  `os.time()` tiene resolución de un segundo. La aleatoriedad se movió a Python.
+
 ### Lo que esto significa para lo que venga después
 
 1. **La vía Lua es la buena, y está confirmada en vivo.** 50 rasgos de personalidad,
@@ -336,6 +373,9 @@ propios de este enano concreto, no un límite de la API.
   (*"Maldito trabajo en la cantera..."*), así que la conversión UTF-8 → CP437 con
   `dfhack.utf2df()` está en el código pero **no se ha ejercitado de verdad**. Es lo
   primero que hay que comprobar, porque en español va a pasar constantemente.
+- **Que el prompt con contexto real dé mejores resultados.** El arreglo está probado
+  contra stubs (se generan bien los dos prompts, adulto y niño), pero todavía no se
+  ha ejecutado contra el juego.
 - Comportamiento con varios enanos, o llamadas repetidas seguidas.
 - Qué ocurre si DF está pausado, o si se descarga la partida con el socket abierto.
 - Textos largos: `showAnnouncement` no se ha probado con más de una línea.

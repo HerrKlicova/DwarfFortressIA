@@ -28,6 +28,7 @@ REFERENCIAS (todo verificado contra fuente antes de escribir esto)
 
 import json
 import os
+import random
 import socket
 import struct
 import sys
@@ -240,7 +241,10 @@ def player2_call(port, method, path, body=None):
 
 def paso1_leer_enano(sock):
     print("[1] Leyendo un enano vivo por la interfaz remota de DFHack...")
-    salida, err = dfhack_run_command(sock, "dfhack_spike", ["dwarf"])
+    # El indice lo elegimos aqui: la aleatoriedad de Lua depende de os.time(),
+    # que tiene resolucion de un segundo y devuelve siempre el mismo enano.
+    idx = random.randint(0, 10000)
+    salida, err = dfhack_run_command(sock, "dfhack_spike", ["dwarf", str(idx)])
     if err is not None:
         print("    FALLO: DFHack devolvio codigo de error %d" % err)
         print("    Salida: %r" % salida)
@@ -250,15 +254,22 @@ def paso1_leer_enano(sock):
     for line in salida.splitlines():
         print("      | " + line)
 
-    nombre = None
+    enano = {"pensamientos": []}
     for line in salida.splitlines():
-        if line.startswith("NOMBRE|"):
-            nombre = line.split("|", 1)[1].strip()
-    if not nombre:
+        if "|" not in line:
+            continue
+        clave, resto = line.split("|", 1)
+        if clave == "PENSAMIENTO":
+            enano["pensamientos"].append(resto.replace("|", " por "))
+        else:
+            enano[clave] = resto.strip()
+
+    if not enano.get("NOMBRE"):
         print("    FALLO: no vino ninguna linea NOMBRE.")
         return None
-    print("    -> ENANO: %s" % nombre)
-    return nombre
+    print("    -> ENANO: %s, %s, %s anos" % (
+        enano["NOMBRE"], enano.get("PROFESION", "?"), enano.get("EDAD", "?")))
+    return enano
 
 
 def paso1b_sondear_campos(sock):
@@ -272,7 +283,7 @@ def paso1b_sondear_campos(sock):
     return salida
 
 
-def paso2_player2(nombre):
+def paso2_player2(enano):
     port = player2_port()
     print("[2] Hablando con Player2 en http://%s:%d ..." % (PLAYER2_HOST, port))
 
@@ -292,10 +303,28 @@ def paso2_player2(nombre):
         print("    -> ¿Esta abierta la app de escritorio de Player2?")
         return None, None
 
-    frase = ("Eres un enano de Dwarf Fortress llamado %s. "
-             "Di una sola frase corta, en espanol, quejandote del trabajo. "
-             "Maximo 15 palabras. Sin comillas." % nombre)
-    print("    Prompt: %s" % frase)
+    # Aqui esta la diferencia entre un LLM que se inventa las cosas y uno que
+    # no: darle los datos reales del enano en vez de solo el nombre.
+    contexto = [
+        "Eres %s, %s, de %s anos, en una fortaleza enana."
+        % (enano["NOMBRE"], enano.get("PROFESION", "sin oficio"), enano.get("EDAD", "?")),
+    ]
+    if enano.get("ADULTO") == "no":
+        contexto.append(
+            "Eres un nino: en esta fortaleza los ninos no trabajan ni tienen "
+            "oficio asignado. No hables de tu trabajo, porque no tienes.")
+    if enano.get("ESTRES") not in (None, "n/d"):
+        contexto.append("Tu nivel de estres es %s (negativo = tranquilo)." % enano["ESTRES"])
+    if enano["pensamientos"]:
+        contexto.append("Tus emociones recientes, tal cual las registra el juego: "
+                        + "; ".join(enano["pensamientos"]) + ".")
+    contexto.append("Di UNA sola frase en primera persona, en espanol, coherente con "
+                    "lo anterior. Maximo 20 palabras. Sin comillas.")
+    frase = "\n".join(contexto)
+
+    print("    Prompt enviado:")
+    for l in frase.splitlines():
+        print("      > " + l)
 
     t0 = time.perf_counter()
     try:
@@ -352,12 +381,12 @@ def main():
     print("    Conectado y handshake OK con DFHack %s:%d" % (DFHACK_HOST, DFHACK_PORT))
 
     try:
-        nombre = paso1_leer_enano(sock)
-        if not nombre:
+        enano = paso1_leer_enano(sock)
+        if not enano:
             return 1
         paso1b_sondear_campos(sock)
 
-        texto, latencia = paso2_player2(nombre)
+        texto, latencia = paso2_player2(enano)
         if not texto:
             return 1
 

@@ -9,7 +9,7 @@
 -- cliente como mensajes CoreTextNotification.
 --
 -- Subcomandos:
---   dfhack_spike dwarf              -> imprime NOMBRE / ID de un enano vivo
+--   dfhack_spike dwarf [n]          -> datos de un ciudadano adulto (n elige cual)
 --   dfhack_spike fields             -> dice que campos existen de verdad (sin volcarlos)
 --   dfhack_spike announce <texto>   -> mete <texto> en el log de anuncios
 
@@ -41,23 +41,58 @@ if sub == 'dwarf' then
         out('ERROR|no hay ciudadanos (fortaleza cargada? modo fortaleza?)')
         return
     end
-    local u = citizens[1]
 
-    -- getVisibleName devuelve un language_name; translateName lo pasa a string.
+    -- Los ninos no pueden tener labores asignadas en DF (DFHack los salta
+    -- en autolabor.cpp), asi que preguntarles por su trabajo no tiene sentido.
+    -- Preferimos adultos; si la fortaleza solo tiene crios, valen igual.
+    local adultos = {}
+    for _, c in ipairs(citizens) do
+        local ok, es = pcall(dfhack.units.isAdult, c)
+        if ok and es then adultos[#adultos + 1] = c end
+    end
+    local pool = (#adultos > 0) and adultos or citizens
+
+    -- ...y uno concreto, para no sacar siempre el mismo. El indice lo elige
+    -- quien llama (Python) y aqui solo se envuelve: la aleatoriedad de Lua
+    -- depende de os.time(), que tiene resolucion de un segundo y repite.
+    local idx = (math.floor(tonumber(args[2]) or 0) % #pool) + 1
+    local u = pool[idx]
+
     local name = nil
     local ok, vis = pcall(dfhack.units.getVisibleName, u)
     if ok and vis then
-        local ok2, s = pcall(dfhack.translation.translateName, vis)
-        if ok2 then name = s end
+        local ok2, str = pcall(dfhack.translation.translateName, vis)
+        if ok2 then name = str end
     end
     if not name or name == '' then
-        -- respaldo documentado
-        local ok3, s = pcall(dfhack.units.getReadableName, u)
-        if ok3 then name = s end
+        local ok3, str = pcall(dfhack.units.getReadableName, u)
+        if ok3 then name = str end
+    end
+
+    local function opt(fn, fallback)
+        local o, v = pcall(fn)
+        if o and v ~= nil then return v end
+        return fallback
     end
 
     out('ID|' .. tostring(u.id))
     out('NOMBRE|' .. dfstr(name or '(sin nombre)'))
+    out('PROFESION|' .. dfstr(opt(function() return dfhack.units.getProfessionName(u) end, 'desconocida')))
+    out('EDAD|' .. tostring(math.floor(opt(function() return dfhack.units.getAge(u) end, -1))))
+    out('ADULTO|' .. (opt(function() return dfhack.units.isAdult(u) end, false) and 'si' or 'no'))
+    out('ESTRES|' .. tostring(opt(function() return u.status.current_soul.personality.stress end, 'n/d')))
+
+    -- Los pensamientos mas recientes: es lo que le da al LLM algo real que decir.
+    local emo = opt(function() return u.status.current_soul.personality.emotions end, nil)
+    if emo then
+        local total = #emo
+        for i = math.max(1, total - 2), total do
+            local e = emo[i]
+            local tipo = opt(function() return df.emotion_type[e.type] end, '?')
+            local causa = opt(function() return df.unit_thought_type[e.thought] end, '?')
+            out('PENSAMIENTO|' .. tostring(tipo) .. '|' .. tostring(causa))
+        end
+    end
     return
 end
 
