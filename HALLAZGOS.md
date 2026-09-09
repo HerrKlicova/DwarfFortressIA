@@ -811,6 +811,37 @@ Añadida una ventana de los últimos 5 sucesos narrados por cualquiera: si el mi
 `detalle` ya se contó, se pasa al siguiente candidato. Un suceso que afecta a todos se
 narra una vez, no una por cabeza.
 
+### Segunda ejecución: los enums arreglados, y tres fugas nuevas
+
+El arreglo funcionó. Los disparadores pasaron de `EUPHORIA Syndrome` a prosa de DF:
+*"bliss after sleeing in a quality bedroom"*, *"relief discussing their problems with
+somebody"*, *"delight after watching a performance"*.
+
+**La errata «sleeing» es de DF, no nuestra**: `df.personality.xml:763` dice literalmente
+`'after sleeing in a [quality] bedroom'`. Se está pasando su texto fielmente.
+
+Pero aparecieron tres fugas de jerga en las respuestas, y **la peor era culpa del prompt**:
+
+| Fuga | Ejemplo | Causa |
+|---|---|---|
+| Cifras crudas | *"aunque mi estrés sigue en **11440**"* | El prompt decía `"Tu nivel de estres es %d"`. Se lo dábamos nosotros |
+| Recitar el disparador | *"Mi ánimo ha mejorado **de categoría 2 a 3**"* | El detalle era `su animo ha mejorado (categoria 2 a 3)`: lenguaje de máquina |
+| Traducción literal | *"placer profundo cerca de **mi propia calidad al construir**"* | Las captions de DF están en **inglés y tercera persona** (`pleasure near his own quality building`) |
+
+Correcciones:
+
+1. **El prompt da la lectura, nunca el número**: *"Por dentro te sientes muy agobiado, al
+   límite"* en vez del valor. Si le das una cifra, la recita.
+2. **El disparador de ánimo pasa a lenguaje llano**: *"te sientes algo peor que hace un
+   rato"*, *"te has quitado un gran peso de encima"*. Sin categorías.
+3. **Se le avisa de que la caption es un apunte del juego**, en inglés y tercera persona,
+   y que no la traduzca sino que cuente lo que significa para él.
+4. Instrucción explícita de no usar cifras, categorías ni nombres de sistema.
+
+La lección se repite: **el modelo devuelve lo que le das**. Las tres veces que hemos
+visto «alucinar» al LLM en este proyecto —la cantera del niño, las cartas a la esposa, y
+ahora las cifras— el fallo estaba en el prompt, no en el modelo.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a

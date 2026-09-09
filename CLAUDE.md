@@ -125,6 +125,11 @@ contra DFHack o no se ha probado.
   global: al añadir `detalle=sonda` se copió el patrón viejo con `enum()` y los
   identificadores crudos volvieron al prompt (`EUPHORIA Syndrome`), con el modelo
   repitiéndolos literalmente. Usar siempre `enum_txt()` en lo que acabe en el prompt.
+- **Nunca meter cifras crudas en el prompt.** El modelo las recita tal cual (*"mi estrés
+  sigue en 11440"*). Dar siempre la lectura, no el valor.
+- **Las captions de DF están en inglés y en tercera persona** (`pleasure near his own
+  quality building`) y traen huecos entre corchetes. Hay que decirle al modelo que son un
+  apunte del juego y que no las traduzca literalmente.
 - **La memoria se guarda por partida.** Los `unit_id` vuelven a empezar en cada mundo,
   así que sin separar por `dfhack.world.ReadWorldFolder()` el enano 272 de una fortaleza
   heredaría los recuerdos del 272 de otra.

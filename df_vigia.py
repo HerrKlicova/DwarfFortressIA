@@ -103,10 +103,7 @@ class Vigia(object):
             # umbrales inventados.
             ca, cv = act.get("estres_cat", -1), viejo.get("estres_cat", -1)
             if ca >= 0 and cv >= 0 and ca != cv:
-                eventos.append(self._evento(
-                    "estres", act,
-                    "su animo ha %s (categoria %d a %d)"
-                    % ("empeorado" if ca < cv else "mejorado", cv, ca)))
+                eventos.append(self._evento("estres", act, self._que_animo(cv, ca)))
 
             if act.get("rel") != viejo.get("rel"):
                 eventos.append(self._evento("relacion", act, self._que_relacion(viejo, act)))
@@ -116,6 +113,17 @@ class Vigia(object):
                 eventos.append(self._ausente(cid, viejo))
 
         return [e for e in eventos if e]
+
+    @staticmethod
+    def _que_animo(antes, ahora_):
+        """En lenguaje llano. Con la redaccion anterior ("su animo ha mejorado
+        (categoria 2 a 3)") el modelo la recitaba tal cual en la respuesta."""
+        salto = abs(ahora_ - antes)          # categorias de DF: 0 peor, 6 mejor
+        if ahora_ > antes:
+            return ("te has quitado un gran peso de encima" if salto > 1
+                    else "te sientes algo mejor que hace un rato")
+        return ("algo te ha hundido el animo de golpe" if salto > 1
+                else "te sientes algo peor que hace un rato")
 
     @staticmethod
     def _que_relacion(viejo, act):
@@ -213,9 +221,15 @@ class Vigia(object):
 
         huella = df_memoria.huella_de(enano)
         recuerdos = self.memoria.para_prompt(clave, huella, 3)
-        instr = ("Acabas de vivir esto: %s. Dilo en voz alta en UNA o DOS frases, en "
-                 "primera persona y en espanol. Hablas para ti mismo: no te dirijas a "
-                 "nadie ni saludes. Sin comillas." % evento["detalle"])
+        # Las captions de DF estan en ingles y en tercera persona ("pleasure near
+        # his own quality building"). Sin avisar, el modelo las traducia literal
+        # y salia "placer cerca de mi propia calidad al construir".
+        instr = ("Esto es lo que acaba de pasarte, tal como lo anota el juego, en ingles "
+                 "y en tercera persona: \"%s\". No lo traduzcas literalmente: cuenta "
+                 "con TUS palabras lo que eso significa para ti, en UNA o DOS frases, "
+                 "en primera persona y en espanol. Hablas para ti mismo: no te dirijas "
+                 "a nadie ni saludes. Sin comillas, sin cifras y sin jerga."
+                 % evento["detalle"])
         prompt = df_llm.construir_prompt(enano, instruccion=instr, recuerdos=recuerdos)
 
         self.p2 = self.p2 or df_llm.Player2()

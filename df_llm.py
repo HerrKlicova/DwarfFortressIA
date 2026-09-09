@@ -416,13 +416,12 @@ def construir_prompt(enano, instruccion=None, recuerdos=None):
 
     estres = enano.get("estres")
     if isinstance(estres, int):
-        # En DF el estres negativo es bueno. Sin explicarlo, el modelo lo
-        # interpreta al reves.
-        como = "muy tranquilo" if estres < -10000 else \
+        # Se da la LECTURA, nunca el numero: cuando el prompt incluia el valor
+        # crudo, el modelo lo recitaba ("aunque mi estres sigue en 11440").
+        como = "muy tranquilo, en paz" if estres < -10000 else \
                "tranquilo" if estres < 0 else \
-               "agobiado" if estres > 10000 else "algo tenso"
-        partes.append("Tu nivel de estres es %d, que en tu mundo significa %s "
-                      "(cuanto mas negativo, mas en paz)." % (estres, como))
+               "muy agobiado, al limite" if estres > 10000 else "algo tenso"
+        partes.append("Por dentro te sientes %s." % como)
 
     rasgos = _rasgos_marcados(enano.get("rasgos", []))
     if rasgos:
@@ -462,6 +461,8 @@ def construir_prompt(enano, instruccion=None, recuerdos=None):
                   "en DOS frases. Hablas para ti mismo mientras trabajas: NO te dirijas "
                   "a nadie, no saludes y no escribas una carta, aunque menciones a "
                   "alguien. Sin comillas, y sin repetir estos datos tal cual.")
+    partes.append("Habla como hablaria una persona: NADA de cifras, porcentajes, "
+                  "categorias ni nombres de sistema, aunque aparezcan arriba.")
     return "\n".join(partes)
 
 
