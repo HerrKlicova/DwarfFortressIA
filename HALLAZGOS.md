@@ -9,7 +9,10 @@ Ejecutado con éxito el 2026-09-09 contra la instalación real: Dwarf Fortress 5
 (Steam), DFHack 53.16-r1.1, Player2 `0.10.78`, Windows, Python 3.14.7.
 
 Los tres pasos pasaron: se leyó un enano vivo de la fortaleza, se llamó al LLM local
-y su respuesta apareció en el log de anuncios del juego. Latencia del LLM: **0,56 s**.
+y su respuesta apareció en el log de anuncios del juego. Latencia del LLM: **0,53-0,64 s**.
+
+Sin preguntas abiertas: los acentos funcionan en las dos direcciones, el contexto real
+llega al prompt y la respuesta es coherente con los datos del enano.
 
 **Veredicto: sí, se puede. Adelante con lo demás.**
 
@@ -388,6 +391,53 @@ Ahora se imprime lo que DFHack contesta y solo se sugiere una causa cuando **no*
 salida ninguna. Un diagnóstico que adivina mal es peor que no tener diagnóstico:
 manda a mirar la carpeta equivocada.
 
+### Cierre: con contexto real, la salida deja de ser mentira
+
+Ejecución final, enano `Udil Nolêthshorast`, `Fish Cleaner`, 24 años, estrés `-1100`,
+con emociones `FONDNESS por Talked`, `INTEREST por WatchPerform` y `DELIGHT por
+WatchPerform`. El LLM devolvió:
+
+> *Estoy tranquilo limpiando peces, aún con el delicioso recuerdo de tu actuación.*
+
+Cada pieza sale de un dato real, no de la imaginación del modelo:
+
+| Trozo de la frase | De dónde sale |
+|---|---|
+| *"Estoy tranquilo"* | `ESTRES = -1100`, negativo |
+| *"limpiando peces"* | `PROFESION = Fish Cleaner` |
+| *"el delicioso recuerdo de tu actuación"* | `DELIGHT por WatchPerform` |
+
+Comparado con el *"maldito trabajo en la cantera"* del niño de 8 años, la diferencia
+no es de estilo: es que ahora **es verdad**. El tubo no cambió ni una línea; lo que
+cambió fue lo que se le mete dentro.
+
+### Acentos y CP437: confirmado en las dos direcciones ✅
+
+- **Lectura** (`dfhack.df2utf`): nombres como `Fath Zolakîton` y `Udil Nolêthshorast`
+  llegan con la `î` y la `ê` intactas.
+- **Escritura** (`dfhack.utf2df`): el anuncio *"...aún con el delicioso recuerdo de tu
+  actuación"* se renderiza correctamente en el log del juego, con `ú` y `ó`.
+
+Era el último riesgo abierto y no da problemas. Escribir en español funciona.
+
+### Un detalle a corregir cuando esto crezca
+
+El modelo dijo *"tu actuación"*, hablando con alguien que no está ahí. Es porque se le
+pasan los nombres crudos del enum (`WatchPerform`) sin explicar qué significan, y ha
+supuesto un interlocutor. Para el proyecto de verdad, los `unit_thought_type` y
+`emotion_type` habrá que traducirlos a lenguaje natural antes de meterlos en el prompt
+(`WatchPerform` → *"vio una actuación"*), no volcarlos tal cual.
+
+### Latencia en tres ejecuciones
+
+| Ejecución | Latencia |
+|---|---|
+| 1 (prompt mínimo) | 0,56 s |
+| 2 (prompt mínimo) | 0,53 s |
+| 3 (prompt con contexto) | 0,64 s |
+
+Añadir el contexto costó ~0,1 s. Sigue de sobra para uso interactivo.
+
 ### Lo que esto significa para lo que venga después
 
 1. **La vía Lua es la buena, y está confirmada en vivo.** 50 rasgos de personalidad,
@@ -404,15 +454,7 @@ manda a mirar la carpeta equivocada.
 
 ### Lo que sigue sin probarse
 
-- **Acentos y `ñ` al ESCRIBIR el anuncio.** Sigue sin probarse: ninguna respuesta del
-  LLM ha traído todavía un carácter no ASCII, así que `dfhack.utf2df()` está en el
-  código pero sin ejercitar.
-- **Al LEER sí funciona ✅.** Una ejecución posterior devolvió el nombre
-  `Fath Zolakîton`, con `î`, correctamente decodificado de CP437 a UTF-8 por
-  `dfhack.df2utf()`. La dirección de lectura queda confirmada; falta la de escritura.
-- **Que el prompt con contexto real dé mejores resultados.** El arreglo está probado
-  contra stubs (se generan bien los dos prompts, adulto y niño), pero todavía no se
-  ha ejecutado contra el juego.
+- Comportamiento con muchas llamadas seguidas, o con varios enanos a la vez.
 - Comportamiento con varios enanos, o llamadas repetidas seguidas.
 - Qué ocurre si DF está pausado, o si se descarga la partida con el socket abierto.
 - Textos largos: `showAnnouncement` no se ha probado con más de una línea.
