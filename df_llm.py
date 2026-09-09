@@ -458,9 +458,15 @@ def construir_prompt(enano, instruccion=None, recuerdos=None, tope_rasgos=None):
 
     partes.append(instruccion or
                   "Di un pensamiento tuyo en voz alta, en primera persona y en espanol, "
-                  "en DOS frases. Hablas para ti mismo mientras trabajas: NO te dirijas "
-                  "a nadie, no saludes y no escribas una carta, aunque menciones a "
-                  "alguien. Sin comillas, y sin repetir estos datos tal cual.")
+                  "en DOS frases. Es un pensamiento suelto, tuyo: NO te dirijas a nadie, "
+                  "no saludes y no escribas una carta, aunque menciones a alguien. "
+                  "Sin comillas, y sin repetir estos datos tal cual.")
+    # Con la redaccion anterior ("hablas para ti mismo MIENTRAS trabajas"), 14 de
+    # 18 respuestas empezaban por "Mientras tallo/afilo/pico...". El modelo cogio
+    # la palabra del prompt y la convirtio en muletilla.
+    partes.append("Empieza por donde te apetezca, pero NO arranques describiendo la "
+                  "tarea que tienes entre manos: eso ya se ve. Ve directo a lo que "
+                  "sientes o piensas.")
     partes.append("Habla como hablaria una persona: NADA de cifras, porcentajes, "
                   "categorias ni nombres de sistema, aunque aparezcan arriba.")
     return "\n".join(partes)

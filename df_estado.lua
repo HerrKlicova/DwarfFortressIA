@@ -255,11 +255,18 @@ local function enano_tabla(u, detalle, max_pens)
     cada(try(function() return u.relationship_ids end, nil), function(id, i)
         if id and id >= 0 then
             local otro = try(function() return df.unit.find(id) end, nil)
-            e.relaciones[#e.relaciones + 1] = {
-                tipo = enum('unit_relationship_type', i),
-                txt = enum_txt('unit_relationship_type', i),
-                quien = otro and dfstr(nombre_de(otro)) or ('unidad ' .. tostring(id)),
-            }
+            -- Si no se puede resolver el nombre se OMITE la relacion. Antes se
+            -- mandaba 'unidad 338' de relleno y el modelo lo tomaba por un
+            -- nombre propio: "Unidad 338 me espera esta noche con su sonrisa
+            -- callada". Una relacion sin nombre no aporta nada al prompt.
+            local nombre = otro and dfstr(nombre_de(otro)) or nil
+            if nombre and nombre ~= '' and nombre ~= '(sin nombre)' then
+                e.relaciones[#e.relaciones + 1] = {
+                    tipo = enum('unit_relationship_type', i),
+                    txt = enum_txt('unit_relationship_type', i),
+                    quien = nombre,
+                }
+            end
         end
     end)
 

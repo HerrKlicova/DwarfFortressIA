@@ -125,6 +125,12 @@ contra DFHack o no se ha probado.
   global: al añadir `detalle=sonda` se copió el patrón viejo con `enum()` y los
   identificadores crudos volvieron al prompt (`EUPHORIA Syndrome`), con el modelo
   repitiéndolos literalmente. Usar siempre `enum_txt()` en lo que acabe en el prompt.
+- **Cuidado con las palabras sueltas de la instruccion.** *"Hablas para ti mismo
+  mientras trabajas"* hizo que 14 de 18 respuestas empezaran por *"Mientras..."*. Y no se
+  arregla diciendo «no uses esa palabra»: nombrarla la vuelve a meter en el contexto.
+- **Ningun valor de relleno debe llegar al prompt.** `unidad 338` (el sustituto de un
+  pariente no resuelto) acabo convertido en un personaje. Si un dato no se puede
+  resolver, se omite.
 - **Nunca meter cifras crudas en el prompt.** El modelo las recita tal cual (*"mi estrés
   sigue en 11440"*). Dar siempre la lectura, no el valor.
 - **Las captions de DF están en inglés y en tercera persona** (`pleasure near his own

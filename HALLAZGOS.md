@@ -842,6 +842,55 @@ La lección se repite: **el modelo devuelve lo que le das**. Las tres veces que 
 visto «alucinar» al LLM en este proyecto —la cantera del niño, las cartas a la esposa, y
 ahora las cifras— el fallo estaba en el prompt, no en el modelo.
 
+### ¿Cuántos rasgos? La medición dice que da igual
+
+| Rasgos en el prompt | Solapamiento léxico | Prompt medio |
+|---|---|---|
+| 3 | 0,059 | 1 093 car. |
+| 5 | 0,068 | 1 143 car. |
+| 8 | 0,064 | 1 223 car. |
+
+Diferencia máxima: **0,009**. Con 6 enanos son 15 pares por grupo, así que eso es ruido.
+
+**El número de rasgos no influye en que los enanos suenen distintos.** Contradice tanto
+el plan de bajar a 3 como el temor de que 3 los homogeneizara: la variedad no sale de
+los rasgos, sale de las relaciones, el oficio, el estrés y el pensamiento que dispara.
+
+Se queda en **8**, porque no penaliza y da textura más específica —a 8 rasgos aparecen
+la poesía y el celo por el taller que a 3 no salen— y el coste extra son 130 caracteres
+de prompt, que la fase 2 demostró que no afectan a la latencia.
+
+### El tic del «Mientras»: 16 de 18 respuestas
+
+Con cualquiera de los tres topes, casi todas las respuestas tenían la misma forma:
+
+> *"**Mientras** tallo esta piedra, pienso..."* · *"**Mientras** afilo esta hoja, pienso..."*
+> *"**Mientras** pico la roca, pienso..."*
+
+14 de 18 **empezaban** por esa palabra. La causa estaba en la instrucción:
+*"Hablas para ti mismo **mientras trabajas**"*. El modelo cogió la palabra del prompt y
+la convirtió en muletilla.
+
+Corregido quitándola y pidiendo explícitamente que no arranque describiendo la tarea.
+**No se nombra la fórmula prohibida**, porque decir «no uses *mientras*» vuelve a meter
+la palabra en el contexto.
+
+### `Unidad 338` no era un enano, era mi relleno
+
+Dos respuestas hablaban de una tal *"Unidad 338"* como si fuera una persona:
+*"Unidad 338 me espera esta noche con su sonrisa callada"*.
+
+Cuando `df.unit.find()` no resuelve al pariente —está fuera del mapa, o muerto— el lado
+Lua emitía `'unidad ' .. id` de relleno, y el modelo lo tomó por un nombre propio. Ahora
+**la relación se omite** si no hay nombre: una relación anónima no aporta nada.
+
+### El patrón, por cuarta vez
+
+Las cuatro veces que el texto ha salido mal en este proyecto, la causa estaba en el
+prompt, no en el modelo: el niño quejándose de la cantera, las cartas a la esposa, las
+cifras recitadas y ahora la muletilla y el nombre de relleno. **El modelo devuelve lo
+que le das.**
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a
