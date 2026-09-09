@@ -644,7 +644,7 @@ Validado contra el juego el 2026-09-09: fortaleza de 64 ciudadanos, 40 adultos.
 solo**: una de las respuestas traía un salto de línea y salió como **2 anuncios**, que
 es exactamente para lo que estaba la lección del E5.
 
-### Anomalía abierta: la latencia subió y no sé por qué
+### Anomalía de latencia — RESUELTA: era ruido
 
 | | Prompt | Respuesta | Latencia |
 |---|---|---|---|
@@ -652,20 +652,60 @@ es exactamente para lo que estaba la lección del E5.
 | Servicio | 952 car. | ~290 car. | **1,45 s** |
 | Servicio | 1 030 car. | ~330 car. | **1,41 s** |
 
-Prompt **cinco veces más pequeño**, respuesta **la mitad de larga**, y aun así **un 48%
-más de tiempo**. Las dos muestras nuevas son consistentes entre sí pero quedan fuera de
-la banda de E1, que era estrecha.
+Se volvió a medir con el método del E1 (cinco vueltas, mediana y rango) sobre el
+prompt del servicio:
 
-**No hay explicación todavía y no conviene inventarla.** Puede ser carga del modelo,
-estado de la app, o algo del propio servicio. Son solo dos muestras frente a cinco.
-Antes de sacar conclusiones hay que volver a medir con el mismo método del E1.
+| | Prompt | Mediana | Rango |
+|---|---|---|---|
+| E1 (fase 1) | 4 887 car. | 0,952 s | 0,932 – 1,038 |
+| Servicio, re-medido | 1 156 car. | **0,967 s** | 0,734 – 1,172 |
 
-### Los enums crudos siguen filtrándose al texto
+**Diferencia: 15 milisegundos.** Aquellas dos muestras de 1,41 y 1,45 s eran valores
+sueltos, no una tendencia. Sirve de recordatorio de por qué no se les buscó explicación
+en su momento: cualquier causa que se hubiera inventado habría sido falsa.
 
-Ya se anotó en el spike y sigue vivo. Un albañil dijo *"ni siquiera me molesta
-desperdiciar un poco de material de más"*, que viene de un rasgo con nombre de enum, y
-el modelo lo interpretó bien por casualidad. Traducir `unit_thought_type`,
-`emotion_type` y `personality_facet_type` a lenguaje natural sigue pendiente.
+Un patrón que sí sostienen los datos: **la latencia va con el tamaño de la RESPUESTA,
+no con el del prompt.** Correlación entre caracteres generados y tiempo: **r = 0,80**
+en estas cinco muestras. Encaja con que un prompt cuatro veces más corto no cambie
+nada. Para el proyecto: **acotar la respuesta abarata más que acotar el contexto.**
+
+### Enums traducidos ✅ usando el texto del propio DF
+
+df-structures trae `caption` en algunos enums, accesibles desde Lua con
+`df.<enum>.attrs[v].caption` (`Lua API.rst:377`). Preguntado a la instalación real con
+`df_llm.py enums`:
+
+| Enum | ¿Caption? | Ejemplo |
+|---|---|---|
+| `unit_thought_type` | ✅ **prosa real** | `Conflict` → *"while in conflict"* |
+| `job_skill` | ✅ cosmético | `MINING` → *"Mining"* |
+| `skill_rating` | ✅ inútil | `Dabbling` → *"Dabbling"* (idéntico) |
+| `emotion_type` | ❌ | se humaniza |
+| `personality_facet_type` | ❌ | se humaniza |
+| `unitpref_type`, `unit_relationship_type`, `value_type` | ❌ | se humanizan |
+
+El premio gordo es `unit_thought_type`: **281 valores con prosa escrita por DF**, que es
+justo la causa de cada emoción. Para el resto se humaniza el identificador de forma
+mecánica (`WatchPerform` → *watch perform*), que no interpreta ni inventa nada.
+
+```
+Antes:  DELIGHT por WatchPerform; GRIEF por WitnessDeath
+Ahora:  delight while watching a performance; grief after seeing somebody die
+```
+
+### Tono corregido ✅
+
+El modelo ya no escribe cartas. Bastó decirle explícitamente para quién habla:
+*"Hablas para ti mismo mientras trabajas: NO te dirijas a nadie"*.
+
+> *Mientras tallo esta culata de ballesta, siento una satisfacción profunda al ver cómo
+> la madera enana se adapta a mis manos. Qué pena que mis padres nunca llegaran a ver
+> lo bien que me ha quedado esta fortaleza.*
+
+Efecto secundario a vigilar: `_rasgos_marcados` selecciona los rasgos más extremos, y
+un rasgo muy alto **domina la salida**. Un enano con lujuria alta produce respuestas
+marcadamente eróticas. Es coherente con los datos, pero si algún día molesta, el sitio
+para tocarlo es el criterio de selección de rasgos, no el prompt.
 
 ### El modelo habla *a* alguien en vez de *sobre* sí mismo
 
