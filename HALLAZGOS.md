@@ -718,6 +718,60 @@ No es un fallo técnico —la frase es coherente y en primera persona— pero en
 anuncios queda raro. Se arregla en la instrucción final del prompt, diciendo
 explícitamente que hable para sí mismo y que no se dirija a nadie.
 
+## FASE 3 — Paso 0: estabilidad de ids y coste del sondeo ✅
+
+Ejecutado el 2026-09-09 con guardado y recarga reales. Fortaleza de 64 ciudadanos.
+
+### `unit_id` sobrevive. Sirve como clave.
+
+| Métrica | Resultado |
+|---|---|
+| ids presentes antes y después | 64 y 64, los mismos |
+| **ids que siguen apuntando al mismo enano** | **64 de 64** |
+| ids que apuntan a otro enano | **0** |
+| `hist_figure_id` válidos | **64 de 64** (ninguno vale `-1`) |
+| hfid que apuntan a otro enano | 0 |
+
+La comparación no cuenta supervivientes sino **huellas**: nombre + año y momento de
+nacimiento + `hist_figure_id`. Un id que existiera pero hubiera cambiado de dueño
+habría saltado, que es el fallo silencioso que se buscaba.
+
+**Las dos claves valen.** Se usa `unit_id` por ser directa; `hist_figure_id` queda como
+verificación cruzada dentro de la huella.
+
+### Reutilización de ids: evidencia fuerte de que no ocurre
+
+Era la duda planteada en revisión externa, y un ciclo de guardado no puede resolverla
+—hace falta que alguien muera y llegue otro después—. Pero los números son elocuentes:
+
+- `unit_next_id` = **5486**, y el id de ciudadano más alto es **5483**
+- Rango de ids: 254 – 5483, con **5166 huecos**
+- El contador **no se reinició** al recargar: 5486 antes y después
+
+Los huecos son todo lo demás que DF ha creado alguna vez (fauna, invasores, difuntos).
+**El contador va justo por delante del máximo**: patrón de asignación secuencial desde
+un contador global, no de reciclaje desde un pool. Es evidencia, no prueba — y por eso
+la huella se implementa igualmente.
+
+### Coste del sondeo: la objeción estaba justificada
+
+| Nivel | Bytes | Lua | Ida y vuelta | Por minuto (cada 5 s) | Frames parados |
+|---|---|---|---|---|---|
+| `basico` | 9,3 KB | 1 ms | 9,9 ms | 109 KB · 12 ms | 0,1 |
+| **`sonda`** | **15,0 KB** | **5 ms** | **10,7 ms** | **176 KB · 60 ms** | **0,5** |
+| `completo` | **344,5 KB** | **40 ms** | **104,9 ms** | 4 037 KB · 480 ms | **3,9** |
+
+Sondear con `completo` habría costado **23 veces más tráfico y 8 veces más tiempo de
+juego bloqueado**: 40 ms por vuelta son casi **4 frames congelados** cada 5 segundos, a
+98 FPS. Un tirón perceptible, y todo para comprobar si a alguien le cambió el humor.
+
+Con `sonda` son 0,5 frames y el 0,1% del tiempo. **Los 2 ms de la fase 1 no eran
+extrapolables**: medían lectura de campos, no serialización ni transporte.
+
+`sonda` cuesta 5× más Lua que `basico` porque recorre todas las emociones de cada enano
+(entre 28 y 69) para quedarse con la marca de tiempo más reciente. Es lo que compra la
+detección exacta de emoción nueva, y sigue siendo despreciable.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a
