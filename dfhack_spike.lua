@@ -85,8 +85,10 @@ if sub == 'dwarf' then
     -- Los pensamientos mas recientes: es lo que le da al LLM algo real que decir.
     local emo = opt(function() return u.status.current_soul.personality.emotions end, nil)
     if emo then
+        -- OJO: los vectores de DFHack son 0-INDEXADOS (Lua API.rst:250) y dan
+        -- error al salirse. Con #emo == n, los indices validos son 0..n-1.
         local total = #emo
-        for i = math.max(1, total - 2), total do
+        for i = math.max(0, total - 3), total - 1 do
             local e = emo[i]
             local tipo = opt(function() return df.emotion_type[e.type] end, '?')
             local causa = opt(function() return df.unit_thought_type[e.thought] end, '?')

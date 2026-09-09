@@ -353,6 +353,41 @@ Lua contra un DFHack falso, no leyéndola:
 - Al pasar a elegir al azar, `math.randomseed(os.time())` seguía devolviendo el mismo:
   `os.time()` tiene resolución de un segundo. La aleatoriedad se movió a Python.
 
+### Los vectores de DFHack son 0-indexados, y eso rompe el instinto de Lua
+
+Tercer fallo real, en la primera ejecución del script con contexto:
+
+```
+Cannot read field vector<personality_moodst*>.54: index out of bounds.
+dfhack_spike.lua:90
+```
+
+Las tablas de Lua empiezan en 1, pero los contenedores de DFHack **no**. De
+`docs/dev/Lua API.rst:250`:
+
+> *"Accesses the container element, using either a **0-based** numerical index"*
+
+Con `#emo == 54`, los índices válidos son `0..53`. Mi bucle pedía del 52 al 54 y se
+salía por el final. El arreglo es leer `math.max(0, n-3) .. n-1`.
+
+Lo importante no es el fallo, sino **por qué no lo cazaron las pruebas**: el DFHack
+falso usaba una tabla normal de Lua, 1-indexada y silenciosa al salirse. Reproducía
+mi propia suposición equivocada en lugar del comportamiento real. Se arregló dando al
+banco de pruebas un `__index` que **también** revienta fuera de rango, y entonces
+reprodujo el error exacto, misma línea. Segunda vez que pasa lo mismo en este spike
+(la primera fue el separador CP437). Es un patrón, no mala suerte.
+
+### El mensaje de error mentía
+
+Ante el fallo anterior, el script dijo: *"Causa más probable: dfhack_spike.lua no está
+en dfhack-config\scripts\"*. Falso: el script estaba puesto y funcionando, y DFHack
+había devuelto un traceback de Lua completo diciendo exactamente qué línea fallaba.
+El mensaje adivinaba una causa en vez de leer la que venía en la respuesta.
+
+Ahora se imprime lo que DFHack contesta y solo se sugiere una causa cuando **no** hay
+salida ninguna. Un diagnóstico que adivina mal es peor que no tener diagnóstico:
+manda a mirar la carpeta equivocada.
+
 ### Lo que esto significa para lo que venga después
 
 1. **La vía Lua es la buena, y está confirmada en vivo.** 50 rasgos de personalidad,
@@ -369,10 +404,12 @@ Lua contra un DFHack falso, no leyéndola:
 
 ### Lo que sigue sin probarse
 
-- **Acentos y `ñ` en el anuncio.** La respuesta que llegó no llevaba ninguno
-  (*"Maldito trabajo en la cantera..."*), así que la conversión UTF-8 → CP437 con
-  `dfhack.utf2df()` está en el código pero **no se ha ejercitado de verdad**. Es lo
-  primero que hay que comprobar, porque en español va a pasar constantemente.
+- **Acentos y `ñ` al ESCRIBIR el anuncio.** Sigue sin probarse: ninguna respuesta del
+  LLM ha traído todavía un carácter no ASCII, así que `dfhack.utf2df()` está en el
+  código pero sin ejercitar.
+- **Al LEER sí funciona ✅.** Una ejecución posterior devolvió el nombre
+  `Fath Zolakîton`, con `î`, correctamente decodificado de CP437 a UTF-8 por
+  `dfhack.df2utf()`. La dirección de lectura queda confirmada; falta la de escritura.
 - **Que el prompt con contexto real dé mejores resultados.** El arreglo está probado
   contra stubs (se generan bien los dos prompts, adulto y niño), pero todavía no se
   ha ejecutado contra el juego.

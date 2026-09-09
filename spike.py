@@ -239,6 +239,21 @@ def player2_call(port, method, path, body=None):
 
 # ---------------------------------------------------------------- pasos
 
+def diagnosticar_fallo(err, salida):
+    """No adivinar la causa: DFHack ya la dice si uno se molesta en mirarla."""
+    print("    FALLO: DFHack devolvio codigo de error %d" % err)
+    if salida.strip():
+        print("    Lo que dijo DFHack:")
+        for line in salida.splitlines():
+            print("      | " + line)
+    if "stack traceback" in salida or ".lua:" in salida:
+        print("    -> Es un error DENTRO del script lua, no de conexion ni de")
+        print("       instalacion. La linea del traceback dice donde.")
+    elif not salida.strip():
+        print("    -> Sin ninguna salida. Lo mas probable es que dfhack_spike.lua")
+        print("       no este en dfhack-config\\scripts\\ o se llame de otra forma.")
+
+
 def paso1_leer_enano(sock):
     print("[1] Leyendo un enano vivo por la interfaz remota de DFHack...")
     # El indice lo elegimos aqui: la aleatoriedad de Lua depende de os.time(),
@@ -246,9 +261,7 @@ def paso1_leer_enano(sock):
     idx = random.randint(0, 10000)
     salida, err = dfhack_run_command(sock, "dfhack_spike", ["dwarf", str(idx)])
     if err is not None:
-        print("    FALLO: DFHack devolvio codigo de error %d" % err)
-        print("    Salida: %r" % salida)
-        print("    Causa mas probable: dfhack_spike.lua no esta en dfhack-config\\scripts\\")
+        diagnosticar_fallo(err, salida)
         return None
     print("    Respuesta cruda de DFHack:")
     for line in salida.splitlines():
@@ -276,7 +289,7 @@ def paso1b_sondear_campos(sock):
     print("[1b] Sondeando que campos del enano existen de verdad en tu build...")
     salida, err = dfhack_run_command(sock, "dfhack_spike", ["fields"])
     if err is not None:
-        print("    FALLO: codigo %d" % err)
+        diagnosticar_fallo(err, salida)
         return ""
     for line in salida.splitlines():
         print("      | " + line)
@@ -353,7 +366,7 @@ def paso3_anunciar(sock, texto):
     print("[3] Inyectando la respuesta en el log de anuncios del juego...")
     salida, err = dfhack_run_command(sock, "dfhack_spike", ["announce", texto])
     if err is not None:
-        print("    FALLO: codigo %d -- %r" % (err, salida))
+        diagnosticar_fallo(err, salida)
         return False
     for line in salida.splitlines():
         print("      | " + line)
