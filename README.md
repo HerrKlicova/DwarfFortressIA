@@ -19,7 +19,6 @@ vale de este repositorio no es el código, sino lo que se aprendió escribiéndo
 | `spike.py` | Cliente de la interfaz remota de DFHack (socket + protobuf a mano) y de la API local de Player2. Sin dependencias, sin asincronía. |
 | `dfhack_spike.lua` | Script que va dentro del juego. DFHack lo convierte en un comando invocable por RPC. |
 | `HALLAZGOS.md` | **Lo importante.** Bitácora completa: qué funcionó, qué no, latencias medidas, qué datos del enano existen de verdad, y las trampas encontradas, con cita a fichero y línea del código de DFHack. |
-| `informe.html` | Informe de traspaso, pensado para alguien que llega sin contexto. |
 
 ## Requisitos
 
