@@ -91,6 +91,9 @@ local function estado_base()
         n_ciudadanos = math.floor(try(function()
             local c = dfhack.units.getCitizens(); return c and #c or 0
         end, 0)),
+        -- Si existe y es un contador monotono, apunta a asignacion secuencial de
+        -- unit_id sin reciclaje. Es indicio, no prueba. Se prueba que exista.
+        unit_next_id = math.floor(try(function() return df.global.unit_next_id end, -1)),
     }
 end
 
@@ -121,6 +124,52 @@ local function cada(vec, fn, maximo)
     end
 end
 
+-- Lo minimo para detectar cambios entre dos vueltas del bucle. Evita serializar
+-- ~123 objetos por enano (50 rasgos, 28 pensamientos, 18 preferencias, 27
+-- habilidades) solo para comprobar si a alguien le cambio el humor.
+local function enano_sonda(u)
+    local e = {
+        id     = math.floor(try(function() return u.id end, -1)),
+        hfid   = math.floor(try(function() return u.hist_figure_id end, -1)),
+        nombre = dfstr(nombre_de(u)),
+        nac_a  = math.floor(try(function() return u.birth_year end, -1)),
+        nac_t  = math.floor(try(function() return u.birth_time end, -1)),
+        estres = math.floor(try(function() return u.status.current_soul.personality.stress end, 0)),
+    }
+
+    -- Emociones: cada una lleva marca de tiempo del juego (year, year_tick, de
+    -- df.personality.xml). Con ella la deteccion de "emocion nueva" es exacta;
+    -- comparar contadores fallaria porque DF tambien PODA emociones viejas.
+    local emo = try(function() return u.status.current_soul.personality.emotions end, nil)
+    e.emo_n, e.emo_a, e.emo_t = 0, -1, -1
+    if emo then
+        local n = try(function() return #emo end, 0)
+        e.emo_n = n
+        for i = 0, n - 1 do                       -- vector de DF: 0-indexado
+            local m = try(function() return emo[i] end, nil)
+            if m then
+                local a = math.floor(try(function() return m.year end, -1))
+                local t = math.floor(try(function() return m.year_tick end, -1))
+                if a > e.emo_a or (a == e.emo_a and t > e.emo_t) then
+                    e.emo_a, e.emo_t = a, t
+                    e.emo_tipo   = enum('emotion_type', try(function() return m.type end, -1))
+                    e.emo_causa  = enum('unit_thought_type', try(function() return m.thought end, -1))
+                    e.emo_fuerza = math.floor(try(function() return m.strength end, 0))
+                end
+            end
+        end
+    end
+
+    -- Firma compacta de las relaciones, para ver si cambian sin traerlas enteras.
+    local partes = {}
+    cada(try(function() return u.relationship_ids end, nil), function(id)
+        partes[#partes + 1] = tostring(id)
+    end)
+    e.rel = table.concat(partes, ',')
+
+    return e
+end
+
 local function enano_tabla(u, detalle, max_pens)
     local e = {
         id        = math.floor(try(function() return u.id end, -1)),
@@ -129,6 +178,11 @@ local function enano_tabla(u, detalle, max_pens)
         edad      = math.floor(try(function() return dfhack.units.getAge(u) end, -1)),
         adulto    = try(function() return dfhack.units.isAdult(u) end, false),
         estres    = math.floor(try(function() return u.status.current_soul.personality.stress end, 0)),
+        -- Huella del enano. No cambia nunca, asi que sirve para detectar que un
+        -- unit_id reutilizado ya no apunta a la misma persona (df.unit.xml:2719).
+        hfid      = math.floor(try(function() return u.hist_figure_id end, -1)),
+        nac_a     = math.floor(try(function() return u.birth_year end, -1)),
+        nac_t     = math.floor(try(function() return u.birth_time end, -1)),
     }
     if detalle ~= 'completo' then return e end
 
@@ -222,7 +276,9 @@ if sub == 'enanos' then
     end
 
     local desde   = math.max(0, math.floor(tonumber(opt.desde) or 0))
-    local cuantos = math.max(1, math.floor(tonumber(opt.n) or 5))
+    -- n=0 significa "todos": es lo que necesita el bucle de vigilancia.
+    local pedidos = math.floor(tonumber(opt.n) or 5)
+    local cuantos = (pedidos <= 0) and #pool or math.max(1, pedidos)
     local detalle = opt.detalle or 'basico'
     local max_pens = math.floor(tonumber(opt.pensamientos) or 8)
 
@@ -232,7 +288,11 @@ if sub == 'enanos' then
     r.enanos = {}
     for k = 0, cuantos - 1 do
         local idx = ((desde + k) % #pool) + 1        -- pool es tabla Lua: 1-indexada
-        r.enanos[#r.enanos + 1] = enano_tabla(pool[idx], detalle, max_pens)
+        if detalle == 'sonda' then
+            r.enanos[#r.enanos + 1] = enano_sonda(pool[idx])
+        else
+            r.enanos[#r.enanos + 1] = enano_tabla(pool[idx], detalle, max_pens)
+        end
     end
     -- microsegundos enteros: %f llevaria coma decimal segun el locale
     r.lua_us = math.floor((os.clock() - t0) * 1000000)
