@@ -403,7 +403,7 @@ def _txt(d, por_defecto="?"):
     return d.get("txt") or d.get("n") or por_defecto
 
 
-def construir_prompt(enano, instruccion=None, recuerdos=None):
+def construir_prompt(enano, instruccion=None, recuerdos=None, tope_rasgos=None):
     """Convierte un enano en un prompt acotado y legible."""
     partes = ["Eres %s, %s, de %s anos, en una fortaleza enana."
               % (enano.get("nombre", "un enano"),
@@ -423,7 +423,7 @@ def construir_prompt(enano, instruccion=None, recuerdos=None):
                "muy agobiado, al limite" if estres > 10000 else "algo tenso"
         partes.append("Por dentro te sientes %s." % como)
 
-    rasgos = _rasgos_marcados(enano.get("rasgos", []))
+    rasgos = _rasgos_marcados(enano.get("rasgos", []), tope_rasgos or TOPE_RASGOS)
     if rasgos:
         partes.append("Rasgos tuyos que destacan: "
                       + ", ".join("%s (%d de 100)" % (_txt(r), r["v"]) for r in rasgos) + ".")
