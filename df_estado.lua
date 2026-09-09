@@ -135,9 +135,18 @@ local function enano_tabla(u, detalle, max_pens)
         end)
 
         cada(try(function() return alma.skills end, nil), function(s)
+            -- Se manda tambien el nivel NUMERICO: skill_rating es un enum
+            -- ordenado, y sin el numero el lado Python no puede quedarse con
+            -- las mejores habilidades sin cablear el orden de memoria.
+            local bruto = try(function() return s.rating end, -1)
+            local nivel_n = tonumber(bruto)
+            if nivel_n == nil then
+                nivel_n = tonumber(try(function() return df.skill_rating[bruto] end, -1)) or -1
+            end
             e.habilidades[#e.habilidades + 1] = {
                 n = enum('job_skill', try(function() return s.id end, -1)),
-                nivel = enum('skill_rating', try(function() return s.rating end, -1)),
+                nivel = enum('skill_rating', bruto),
+                nivel_n = math.floor(nivel_n),
             }
         end)
     end
