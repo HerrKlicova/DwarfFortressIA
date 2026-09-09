@@ -510,14 +510,95 @@ por individuo**, así que el prompt largo no tiene tamaño fijo y habrá que aco
 encola, no espera a que se reanude. Es una buena noticia para la arquitectura: se
 puede leer y escribir mientras el jugador tiene el juego parado.
 
-### E4 · Bloqueo — parcial ⚠️
+### E4 · Bloqueo del juego ✅ Por debajo del ruido de medida
 
-Solo se llegó a medir **FPS en reposo: 100,1** (402 frames en 4,02 s). El resto se
-abortó por un fallo del instrumento, no del juego (ver abajo).
+| Medida | Valor |
+|---|---|
+| FPS en reposo | 98,6 (397 frames en 4,03 s) |
+| `bench` 20 enanos, 2 245 campos | **0,0020 s** en el lado Lua (0,0001 s/enano) |
+| 20 lecturas completas seguidas | mediana 0,007 s, total 0,17 s |
+| 6 índices distintos | 6 enanos distintos ✅ |
 
-### E3, E5, E6 — pendientes
+**Cuidado con el número que escupe el instrumento.** Dice «impacto: 122,9% de los FPS
+en reposo», que leído literalmente significaría que el juego va *más rápido* mientras
+se le consulta. No es así: **la ráfaga solo duró 21 frames**, y a esa escala un frame
+de más o de menos mueve el resultado 6 puntos porcentuales. Es ruido de cuantización.
 
-No llegaron a ejecutarse: van después del E4 en el orden.
+La lectura correcta es la del lado Lua, que no depende de esa ventana:
+**2,0 ms para 20 enanos y 2 245 campos**. Un frame a 98,6 FPS dura 10,1 ms, así que
+el trabajo entero equivale a **0,2 frames**. El impacto sobre el juego no es que sea
+pequeño: es que **no se puede medir** con esta carga.
+
+### E5 · Anuncios largos y multilínea ✅ con una limitación
+
+Los cuatro (100, 300, 800 y 2 000 caracteres) entraron sin error, y el de 2 000
+apareció. Observado en el juego: **el texto se ajusta al ancho del log**, y los cortes
+se corresponden con el final de cada anuncio, no con un truncamiento.
+
+**El `\n` NO se respeta.** El anuncio de tres líneas salió como **un solo anuncio en
+una sola línea**. Para varias líneas hay que hacer varias llamadas a
+`showAnnouncement`, una por línea.
+
+No se determinó un límite máximo exacto de caracteres: a 2 000 todavía no falla, y
+localizar visualmente dónde acaba cada anuncio se vuelve difícil porque entre el
+segundo y el tercero ya no queda separación visible.
+
+### E6 · Player2 real ⚠️ HALLAZGOS.md tenía datos incorrectos
+
+Spec encontrado en **`/v1/openapi.json`** (119 792 bytes, 47 rutas). El `/docs` son
+734 bytes de HTML que solo carga Swagger UI.
+
+Códigos que el spec **documenta** para `/chat/completions`:
+`200`, `400`, `401`, `402`, `429`, `500`.
+
+Códigos **reales**, provocados a propósito:
+
+| Prueba | Código real | Respuesta |
+|---|---|---|
+| Ruta inexistente | `404` | cuerpo vacío |
+| Cuerpo `{}` | **`422`** | `missing field 'messages'` |
+| `messages: []` | **`500`** | `Internal server error` con `request_id` y `trace_id` |
+| Rol `marciano` | **`422`** | `unknown variant, expected one of user, assistant, system, developer` |
+
+Tres correcciones a lo que este documento afirmaba antes:
+
+1. **El `422` no está documentado.** El spec promete `400` para entrada inválida, pero
+   la implementación devuelve `422` con el mensaje de deserialización de Serde. Quien
+   valide contra el spec se equivoca.
+2. **`messages: []` devuelve `500`, no un 4xx.** Es un fallo del servidor de Player2:
+   una lista vacía es error del cliente. Consecuencia práctica: **nunca enviar
+   `messages` vacío**, y no tratar todo `500` como «reintentar más tarde», porque este
+   es determinista y reintentarlo no arregla nada.
+3. **Los roles válidos son cuatro**: `user`, `assistant`, `system` y `developer`. El
+   cuarto no aparecía en la documentación de la que se copió esta sección.
+
+El `client_version` sigue siendo `0.10.78` y `/v1/health` responde `200`.
+
+### E3 · Descarga de partida y cierre de DF ✅ Sin crasheos
+
+Era la incógnita más importante. **No se rompió nada.** Todo con el mismo socket
+abierto de principio a fin:
+
+| Situación | Resultado |
+|---|---|
+| a) En el menú principal | `estado` → `MUNDO=false MAPA=false CIUDADANOS=0`, sin error |
+| a) `contexto` sin partida | `ERROR\|sin partida cargada` — **fallo limpio, no crasheo** |
+| a) `anuncio` sin partida | Devuelve `OK` (no falla, aunque no haya dónde mostrarlo) |
+| b) Tras recargar la partida | `MUNDO=true MAPA=true CIUDADANOS=50`, lectura correcta |
+| b) ¿Sobrevive la conexión? | **SÍ**, el mismo socket sigue sirviendo tras descargar y volver a cargar |
+| c) Con DF cerrado | `ConnectionResetError: [WinError 10054]` — excepción limpia y capturable |
+
+**Conclusión para la arquitectura:** el socket es más robusto de lo que se temía. No
+hace falta reconectar en cada cambio de partida; basta con **capturar
+`ConnectionResetError` y reconectar cuando el juego se cierra**, y **preguntar por
+`MUNDO`/`MAPA` antes de tocar unidades**, que es lo que ya hace el guardián
+`hay_partida()`.
+
+### Veredicto de la fase 1
+
+**Ninguna de las seis incógnitas obliga a replantear la arquitectura.** El único
+cambio de diseño que sale de aquí es táctico: un anuncio por línea, nunca `messages`
+vacío, y validar contra el comportamiento real de Player2 en vez de contra su spec.
 
 ### Trampa nueva: `string.format` de Lua respeta el locale
 
