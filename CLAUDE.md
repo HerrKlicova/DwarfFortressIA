@@ -121,6 +121,10 @@ contra DFHack o no se ha probado.
   ni relaciones. Todo eso solo se alcanza desde un script Lua.
 - **Nunca sondear con `detalle=completo`.** Son 344 KB y 40 ms de Lua por vuelta: casi
   cuatro frames congelados. Para eso está `detalle=sonda`.
+- **Cada camino de datos hacia el prompt debe traducir sus enums.** La corrección no es
+  global: al añadir `detalle=sonda` se copió el patrón viejo con `enum()` y los
+  identificadores crudos volvieron al prompt (`EUPHORIA Syndrome`), con el modelo
+  repitiéndolos literalmente. Usar siempre `enum_txt()` en lo que acabe en el prompt.
 - **La memoria se guarda por partida.** Los `unit_id` vuelven a empezar en cada mundo,
   así que sin separar por `dfhack.world.ReadWorldFolder()` el enano 272 de una fortaleza
   heredaría los recuerdos del 272 de otra.

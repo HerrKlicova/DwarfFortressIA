@@ -163,8 +163,12 @@ local function enano_sonda(u)
                 local t = math.floor(try(function() return m.year_tick end, -1))
                 if a > e.emo_a or (a == e.emo_a and t > e.emo_t) then
                     e.emo_a, e.emo_t = a, t
-                    e.emo_tipo   = enum('emotion_type', try(function() return m.type end, -1))
-                    e.emo_causa  = enum('unit_thought_type', try(function() return m.thought end, -1))
+                    -- enum_txt, no enum: esto acaba en el prompt como disparador.
+                    -- Con el identificador crudo el modelo lo repite literalmente
+                    -- ("¡Euphoria! ¡Que alegria...!"). unit_thought_type tiene
+                    -- captions de verdad, asi que aqui se gana bastante.
+                    e.emo_tipo   = enum_txt('emotion_type', try(function() return m.type end, -1))
+                    e.emo_causa  = enum_txt('unit_thought_type', try(function() return m.thought end, -1))
                     e.emo_fuerza = math.floor(try(function() return m.strength end, 0))
                 end
             end

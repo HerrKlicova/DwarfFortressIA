@@ -772,6 +772,45 @@ extrapolables**: medían lectura de campos, no serialización ni transporte.
 (entre 28 y 69) para quedarse con la marca de tiempo más reciente. Es lo que compra la
 detección exacta de emoción nueva, y sigue siendo despreciable.
 
+## FASE 3 — El vigía funciona ✅
+
+Primera ejecución real del servicio en bucle. **Ocho sucesos narrados** a lo largo de
+dos semanas de juego, con enanos distintos cada vez y los tres tipos de disparador
+funcionando:
+
+| Tipo | Ejemplo real |
+|---|---|
+| Emoción | `INTEREST WatchPerform` → *"Acabo de ver una actuación maravillosa, tan perfecta que casi me molesta no haberla escrito yo mismo."* |
+| Estrés | `su ánimo ha mejorado (categoría 3 a 4)` → *"Mi ánimo ha mejorado bastante, ahora me siento en una paz profunda."* |
+| Relación | `has perdido a alguien importante` → *"He perdido a alguien muy importante para mí. Me duele tanto que no sé qué hacer ahora."* |
+
+La memoria salió limpia: 8 fichas, **ninguna vacía** (la corrección de la lectura que no
+crea ficha funcionó), todas con huella completa, y los `participantes` en su sitio.
+
+### Defecto encontrado: los enums crudos volvieron por la puerta de atrás
+
+Cuatro de las ocho entradas tenían `detalle = "EUPHORIA Syndrome"`, y el modelo lo
+repetía literalmente: *"¡Euphoria! ¡Qué alegría tan grande...!"*.
+
+La causa: el `detalle` que dispara el evento sale de la **sonda**, y la sonda usaba
+`enum()` en lugar de `enum_txt()`. El camino de detalle completo sí traducía; el de la
+sonda no. **Es exactamente la trampa que se arregló en la fase 2, reaparecida en un
+camino nuevo** — porque al añadir la sonda se copió el patrón viejo sin pensar.
+
+Lección para el proyecto: **cada vez que se añade un camino de datos hacia el prompt hay
+que preguntarse si traduce los enums**, porque la corrección de la fase 2 no es global,
+es por sitio.
+
+### Defecto de diseño: los sucesos colectivos llenan la crónica de lo mismo
+
+Un síndrome afectó a media fortaleza y cuatro enanos narraron la misma euforia. Los
+frenos por enano funcionaban —cada uno habló una vez— pero no había ninguno **entre**
+enanos.
+
+Añadida una ventana de los últimos 5 sucesos narrados por cualquiera: si el mismo
+`detalle` ya se contó, se pasa al siguiente candidato. Un suceso que afecta a todos se
+narra una vez, no una por cabeza.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a

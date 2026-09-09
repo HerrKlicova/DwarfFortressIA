@@ -34,6 +34,8 @@ import os
 import sys
 import time
 
+import re
+
 import df_llm
 import df_memoria
 
@@ -42,6 +44,7 @@ FUERZA_MINIMA = 30        # fuerza de la emocion por debajo de la cual se ignora
 DESCANSO_GLOBAL = 20      # segundos minimos entre dos llamadas al LLM
 DESCANSO_ENANO = 900      # un mismo enano no vuelve a hablar hasta pasado esto
 MAX_TOKENS = 160          # la latencia va con lo que escribe, no con lo que lee
+VENTANA_REPETIDOS = 5     # no repetir el mismo suceso aunque le pase a otro enano
 
 PESOS = {"muerte": 100, "locura": 90, "desaparicion": 60,
          "relacion": 50, "estres": 40, "emocion": 20, "llegada": 15}
@@ -62,6 +65,7 @@ class Vigia(object):
         self.antes = None              # sondeo anterior
         self.ultima_llamada = 0.0
         self.ultimo_de = {}            # clave -> cuando hablo por ultima vez
+        self.recientes = []            # ultimos detalles narrados, por CUALQUIER enano
         self.cronica = None
 
     # ---------------------------------------------------------- sondear
@@ -175,6 +179,10 @@ class Vigia(object):
             huella = df_memoria.huella_de(e["enano"])
             if self.memoria.ya_contado(clave, huella, e["detalle"]):
                 continue
+            # Un suceso que afecta a media fortaleza (un sindrome, por ejemplo)
+            # dispara en muchos enanos a la vez y llena la cronica de lo mismo.
+            if e["detalle"] in self.recientes:
+                continue
             candidatos.append(e)
 
         if not candidatos:
@@ -222,11 +230,13 @@ class Vigia(object):
 
         self.ultima_llamada = ahora()
         self.ultimo_de[clave] = ahora()
+        self.recientes.append(evento["detalle"])
+        del self.recientes[:-VENTANA_REPETIDOS]
 
         cuando = {"anio": estado.get("anio", -1), "mes": estado.get("mes", -1),
                   "dia": estado.get("dia", -1)}
         print("  [%s] %s (%.2f s): %s"
-              % (evento["tipo"], enano.get("nombre"), dt, texto.replace("\n", " ")))
+              % (evento["tipo"], enano.get("nombre"), dt, Cronica._plano(texto)))
 
         self.memoria.recordar(clave, huella, evento["tipo"], evento["detalle"],
                               texto, cuando=cuando, participantes=[clave])
@@ -281,12 +291,16 @@ class Cronica(object):
         self.carpeta = carpeta
         self.ruta = os.path.join(carpeta, df_memoria._nombre_fichero(partida)[:-5] + ".txt")
 
+    @staticmethod
+    def _plano(texto):
+        return re.sub(r"\s+", " ", (texto or "")).strip()
+
     def escribir(self, cuando, nombre, detalle, texto):
         os.makedirs(self.carpeta, exist_ok=True)
         with open(self.ruta, "a", encoding="utf-8") as f:
             f.write("[ano %s, mes %s, dia %s] %s -- %s\n  %s\n\n"
                     % (cuando.get("anio"), cuando.get("mes"), cuando.get("dia"),
-                       nombre, detalle, texto.replace("\n", " ")))
+                       nombre, detalle, self._plano(texto)))
 
 
 def main(argv):
