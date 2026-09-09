@@ -66,8 +66,36 @@ ciudadano es figura histórica.
 En la misma pasada se mide el coste real de `sonda` frente a `completo` sobre los 64:
 milisegundos de Lua, bytes de JSON, ida y vuelta.
 
-Requiere dos añadidos mínimos al Lua: `hist_figure_id` en la tabla base (hoy no está) y
-el nivel `sonda`.
+Requiere tres añadidos mínimos al Lua: `hist_figure_id`, `birth_year` y `birth_time` en
+la tabla base (hoy no están), y el nivel `sonda`.
+
+### Sobre la reutilización de ids — revisión tras consulta externa
+
+Observación recibida: que `unit_id` sea estable al recargar **no garantiza** que DF no
+reasigne el id de un enano muerto a uno nuevo meses después, lo que daría los recuerdos
+de un difunto a un recién llegado. El fallo silencioso, otra vez, pero diferido.
+
+La preocupación es correcta. **El método propuesto no la resuelve**: un ciclo de
+guardado y recarga no ejercita la reutilización, porque para eso hace falta que alguien
+muera y llegue otro después — tiempo de juego, no un ciclo de guardado. El paso 0 no
+puede observarlo, y una sola sesión tampoco probaría nada sobre meses de partida.
+
+Se ataca por dos vías, ninguna dependiente de esperar a que ocurra:
+
+1. **Evidencia sobre el esquema de asignación.** El paso 0 lee
+   `df.global.unit_next_id` (probado con `pcall`, no se da por hecho que exista) y
+   registra la distribución de ids presentes. Un contador global monótono con ids
+   dispersos y crecientes —los observados hasta ahora son 272, 273, 335, 1661, 1664—
+   apunta a asignación secuencial sin reciclaje. Es evidencia, no prueba.
+
+2. **Huella que hace irrelevante la respuesta.** Cada entrada de memoria guarda, junto a
+   la clave, una huella del enano: `nombre`, `birth_year`, `birth_time` y
+   `hist_figure_id` (`df.unit.xml:2719`). Al cargar, si la clave coincide pero la huella
+   no, **la memoria se descarta en vez de atribuirse**. Un id reutilizado deja de ser
+   corrupción silenciosa y pasa a ser un enano que simplemente empieza sin pasado.
+
+La vía 2 es la que cierra el riesgo. La 1 solo sirve para saber con qué frecuencia
+esperamos que salte.
 
 ## Pasos siguientes
 
@@ -83,7 +111,13 @@ obligaría a migrar el fichero.
 
 **Ajustes de prompt:**
 - `max_tokens`, apoyado en el dato de fase 2: la latencia va con lo que escribe (r = 0,80), no con lo que lee.
-- Bajar rasgos de 8 a 3 y **fijar el registro en la instrucción de rol**. Hoy un rasgo extremo secuestra la salida porque el prompt no dice en qué tono hablar; con el registro fijado, el rasgo matiza.
+- **Rasgos: el número se mide, no se elige.** El diagnóstico (un rasgo extremo secuestra
+  la salida) es correcto, pero bajar de 8 a 3 y fijar el registro puede provocar el
+  efecto contrario: 64 enanos que suenan todos igual, que en un fuerte grande se nota
+  más que un enano demasiado intenso. Se generarán respuestas para los mismos 6 enanos
+  con 3, 5 y 8 rasgos, y se comparará **solapamiento léxico entre respuestas** (una
+  cifra) junto a la lectura humana (el juicio). El número sale de ahí, no de una
+  corazonada.
 - El historial entra en el prompt para que el enano no se repita ni se contradiga.
 
 ## Detalles de robustez
