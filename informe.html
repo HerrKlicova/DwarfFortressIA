@@ -1,0 +1,375 @@
+<title>Puente DF ↔ LLM local</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  color-scheme: light;
+  --bg:#F3F1ED; --surface:#FBFAF8; --surface-2:#ECE7DE;
+  --ink:#23201C; --ink-soft:#5F584E; --ink-faint:#8C8376;
+  --rule:#DAD3C7; --rule-strong:#C2B9A9;
+  --accent:#A55214; --accent-soft:#F1E3D3;
+  --ok:#2E6B3C; --ok-soft:#E1EDE1;
+  --warn:#A93226; --warn-soft:#F6E3E0;
+  --shadow:0 1px 2px rgba(35,32,28,.06), 0 8px 24px -18px rgba(35,32,28,.5);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --bg:#1A1815; --surface:#221F1A; --surface-2:#2B2720;
+    --ink:#EAE4D8; --ink-soft:#A79E8E; --ink-faint:#7C7365;
+    --rule:#3A342B; --rule-strong:#4C4437;
+    --accent:#E5A244; --accent-soft:#38291630;
+    --ok:#8CB86F; --ok-soft:#24301E;
+    --warn:#E48376; --warn-soft:#3A2320;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -18px rgba(0,0,0,.9);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#1A1815; --surface:#221F1A; --surface-2:#2B2720;
+  --ink:#EAE4D8; --ink-soft:#A79E8E; --ink-faint:#7C7365;
+  --rule:#3A342B; --rule-strong:#4C4437;
+  --accent:#E5A244; --accent-soft:#38291630;
+  --ok:#8CB86F; --ok-soft:#24301E;
+  --warn:#E48376; --warn-soft:#3A2320;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -18px rgba(0,0,0,.9);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  font-size:16.5px; line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+.page{max-width:60rem;margin:0 auto;padding:clamp(1.5rem,4vw,3.5rem) clamp(1.1rem,4vw,2.5rem) 5rem}
+.measure{max-width:41rem}
+
+h1,h2,h3{font-family:Bitter,Georgia,serif;text-wrap:balance;margin:0}
+h1{font-size:clamp(2rem,5vw,2.9rem);font-weight:700;line-height:1.1;letter-spacing:-.015em}
+h2{font-size:clamp(1.3rem,3vw,1.65rem);font-weight:700;line-height:1.2}
+h3{font-size:1.03rem;font-weight:600;line-height:1.3}
+p{margin:0}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+
+.eyebrow{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink-faint);
+}
+code,.mono{font-family:"IBM Plex Mono",ui-monospace,"Courier New",monospace}
+code{font-size:.86em;background:var(--surface-2);padding:.12em .38em;border-radius:3px}
+
+/* ---------- cabecera ---------- */
+header.hero{
+  display:flex;flex-direction:column;gap:1.1rem;
+  padding-bottom:2rem;margin-bottom:2.5rem;
+  border-bottom:2px solid var(--rule-strong);
+}
+.verdict{
+  font-size:1.16rem;line-height:1.5;color:var(--ink-soft);max-width:44rem;
+}
+.verdict strong{color:var(--ink);font-weight:600}
+.meta{display:flex;flex-wrap:wrap;gap:.5rem 1.4rem;font-size:.82rem;color:var(--ink-faint)}
+
+.metrics{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));
+  gap:1px;background:var(--rule);border:1px solid var(--rule);
+  border-radius:5px;overflow:hidden;margin-top:.4rem;
+}
+.metric{background:var(--surface);padding:.85rem 1rem}
+.metric .n{
+  font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;
+  font-size:1.5rem;font-weight:500;color:var(--accent);line-height:1.15;
+}
+.metric .k{font-size:.74rem;color:var(--ink-faint);margin-top:.25rem;line-height:1.35}
+
+/* ---------- secciones ---------- */
+section{margin-top:3.4rem}
+.sec-head{display:flex;flex-direction:column;gap:.4rem;margin-bottom:1.3rem}
+.stack{display:flex;flex-direction:column;gap:1rem}
+
+/* ---------- diagrama ---------- */
+figure{margin:1.6rem 0 0;overflow-x:auto}
+figure svg{display:block;min-width:44rem;width:100%;height:auto}
+.dg-box{fill:var(--surface);stroke:var(--rule-strong);stroke-width:1.5}
+.dg-inner{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1;stroke-dasharray:3 3}
+.dg-t{fill:var(--ink);font-family:Bitter,Georgia,serif;font-weight:600;font-size:17px}
+.dg-s{fill:var(--ink-faint);font-family:"IBM Plex Sans",sans-serif;font-size:12.5px}
+.dg-m{fill:var(--ink-soft);font-family:"IBM Plex Mono",monospace;font-size:12px}
+.dg-a{fill:var(--accent);font-family:"IBM Plex Sans",sans-serif;font-size:12.5px;font-weight:600}
+.dg-line{stroke:var(--rule-strong);stroke-width:1.5;fill:none}
+.dg-head{fill:var(--rule-strong)}
+figcaption,.note{font-size:.8rem;color:var(--ink-faint);margin-top:.7rem;max-width:41rem}
+
+/* ---------- tablas ---------- */
+.tw{overflow-x:auto;margin-top:1.2rem;border:1px solid var(--rule);border-radius:5px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.87rem;min-width:30rem}
+th,td{text-align:left;padding:.6rem .85rem;border-bottom:1px solid var(--rule);vertical-align:top}
+thead th{
+  background:var(--surface-2);font-size:.71rem;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-faint);font-weight:600;white-space:nowrap;
+}
+tbody tr:last-child td{border-bottom:none}
+td.num,th.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+.yes{color:var(--ok);font-weight:600}
+.no{color:var(--warn);font-weight:600}
+
+/* ---------- trampas ---------- */
+.trap{
+  background:var(--surface);border:1px solid var(--rule);
+  border-left:3px solid var(--warn);border-radius:4px;
+  padding:1rem 1.15rem;display:flex;flex-direction:column;gap:.55rem;
+}
+.trap h3{color:var(--ink)}
+.trap p{font-size:.92rem;color:var(--ink-soft)}
+.src{
+  font-family:"IBM Plex Mono",monospace;font-size:.74rem;color:var(--ink-faint);
+  border-top:1px dotted var(--rule-strong);padding-top:.5rem;
+}
+.src b{color:var(--ink-soft);font-weight:500;letter-spacing:.08em}
+
+/* ---------- api ---------- */
+.api{display:flex;flex-direction:column;gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:5px;overflow:hidden}
+.api-row{background:var(--surface);padding:.8rem 1rem;display:grid;grid-template-columns:11rem 1fr;gap:.3rem 1.2rem;align-items:baseline}
+.api-row dt{font-family:"IBM Plex Mono",monospace;font-size:.8rem;color:var(--accent);word-break:break-word}
+.api-row dd{margin:0;font-size:.89rem;color:var(--ink-soft)}
+.api-row dd em{color:var(--ink);font-style:normal;font-weight:500}
+@media (max-width:34rem){.api-row{grid-template-columns:1fr}}
+
+/* ---------- decisiones ---------- */
+ol.decisions{list-style:none;counter-reset:d;padding:0;margin:0;display:flex;flex-direction:column;gap:.9rem}
+ol.decisions li{
+  counter-increment:d;display:grid;grid-template-columns:1.9rem 1fr;gap:.9rem;
+  font-size:.94rem;color:var(--ink-soft);
+}
+ol.decisions li::before{
+  content:counter(d,decimal-leading-zero);
+  font-family:"IBM Plex Mono",monospace;font-size:.78rem;color:var(--accent);
+  padding-top:.18rem;font-variant-numeric:tabular-nums;
+}
+ol.decisions b{color:var(--ink);font-weight:600}
+
+ul.plain{margin:0;padding-left:1.1rem;display:flex;flex-direction:column;gap:.5rem;font-size:.94rem;color:var(--ink-soft)}
+ul.plain b{color:var(--ink);font-weight:600}
+
+pre{
+  margin:1.2rem 0 0;background:var(--surface);border:1px solid var(--rule);
+  border-radius:5px;padding:.9rem 1rem;overflow-x:auto;
+  font-family:"IBM Plex Mono",monospace;font-size:.79rem;line-height:1.6;color:var(--ink-soft);
+}
+pre b{color:var(--ink);font-weight:500}
+
+footer{margin-top:4rem;padding-top:1.4rem;border-top:1px solid var(--rule);font-size:.8rem;color:var(--ink-faint);max-width:41rem}
+</style>
+
+<div class="page">
+
+<header class="hero">
+  <span class="eyebrow">Spike técnico · resultado</span>
+  <h1>Puente Dwarf Fortress ↔ LLM local</h1>
+  <p class="verdict">El tubo <strong>existe y funciona de punta a punta</strong>. Un proceso Python externo lee un enano vivo de la fortaleza, consulta a un LLM que corre en la misma máquina y escribe la respuesta en el log de anuncios del juego. Sin dependencias, sin asincronía, ~60 líneas de cliente.</p>
+  <div class="metrics">
+    <div class="metric"><div class="n">0,6 s</div><div class="k">Latencia LLM de punta a punta</div></div>
+    <div class="metric"><div class="n">19/19</div><div class="k">Campos de unidad accesibles</div></div>
+    <div class="metric"><div class="n">0</div><div class="k">Dependencias de Python</div></div>
+    <div class="metric"><div class="n">1</div><div class="k">Método RPC necesario</div></div>
+  </div>
+  <div class="meta">
+    <span>Dwarf Fortress 53.16 (Steam)</span>
+    <span>DFHack 53.16-r1.1</span>
+    <span>Player2 0.10.78</span>
+    <span>Windows · Python 3.14.7</span>
+  </div>
+</header>
+
+<section style="margin-top:0">
+  <div class="sec-head">
+    <span class="eyebrow">Arquitectura</span>
+    <h2>Cómo está montado</h2>
+  </div>
+  <p class="measure">Tres procesos en la misma máquina. La pieza que lo hace simple es que <b>DFHack convierte cualquier <code>.lua</code> de <code>dfhack-config/scripts/</code> en un comando</b>, y ese comando se invoca por RPC. Lectura y escritura salen del mismo método.</p>
+
+  <figure>
+    <svg viewBox="0 0 980 300" role="img" aria-labelledby="dgt">
+      <title id="dgt">Diagrama: Dwarf Fortress con DFHack a la izquierda, spike.py en el centro, la app de Player2 a la derecha</title>
+      <defs>
+        <marker id="ah" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="6" orient="auto">
+          <path d="M0,0 L10,4 L0,8 z" class="dg-head"/>
+        </marker>
+      </defs>
+
+      <rect x="10" y="50" width="212" height="200" rx="6" class="dg-box"/>
+      <text x="116" y="88" text-anchor="middle" class="dg-t">Dwarf Fortress</text>
+      <text x="116" y="110" text-anchor="middle" class="dg-s">+ DFHack (plugin)</text>
+      <rect x="34" y="140" width="164" height="72" rx="4" class="dg-inner"/>
+      <text x="116" y="168" text-anchor="middle" class="dg-m">dfhack_spike.lua</text>
+      <text x="116" y="192" text-anchor="middle" class="dg-s">en dfhack-config/scripts</text>
+
+      <rect x="384" y="50" width="212" height="200" rx="6" class="dg-box"/>
+      <text x="490" y="88" text-anchor="middle" class="dg-t">spike.py</text>
+      <text x="490" y="110" text-anchor="middle" class="dg-s">solo stdlib</text>
+      <text x="490" y="168" text-anchor="middle" class="dg-m">socket + protobuf</text>
+      <text x="490" y="192" text-anchor="middle" class="dg-s">codificado a mano</text>
+
+      <rect x="758" y="50" width="212" height="200" rx="6" class="dg-box"/>
+      <text x="864" y="88" text-anchor="middle" class="dg-t">Player2</text>
+      <text x="864" y="110" text-anchor="middle" class="dg-s">app de escritorio</text>
+      <text x="864" y="168" text-anchor="middle" class="dg-m">modelo local</text>
+      <text x="864" y="192" text-anchor="middle" class="dg-s">sin clave de API</text>
+
+      <text x="303" y="106" text-anchor="middle" class="dg-a">① datos del enano</text>
+      <line x1="232" y1="120" x2="374" y2="120" class="dg-line" marker-end="url(#ah)"/>
+      <text x="303" y="140" text-anchor="middle" class="dg-m">TCP 5000 · protobuf</text>
+
+      <text x="303" y="196" text-anchor="middle" class="dg-a">③ anuncio</text>
+      <line x1="374" y1="210" x2="232" y2="210" class="dg-line" marker-end="url(#ah)"/>
+
+      <text x="677" y="106" text-anchor="middle" class="dg-a">② prompt</text>
+      <line x1="606" y1="120" x2="748" y2="120" class="dg-line" marker-end="url(#ah)"/>
+      <text x="677" y="140" text-anchor="middle" class="dg-m">HTTP 4315 · JSON</text>
+
+      <text x="677" y="196" text-anchor="middle" class="dg-a">respuesta · 0,6 s</text>
+      <line x1="748" y1="210" x2="606" y2="210" class="dg-line" marker-end="url(#ah)"/>
+    </svg>
+    <figcaption>El script Lua vive dentro del proceso del juego y ve las estructuras de datos completas. Python nunca toca memoria del juego: solo manda comandos y lee lo que el script imprime.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Hallazgo decisivo</span>
+    <h2>El RPC estructurado no sirve para lo interesante</h2>
+  </div>
+  <p class="measure">DFHack expone un RPC <code>ListUnits</code> con mensajes protobuf bien definidos. Es tentador construir encima. <b>No lo hagáis.</b> Devuelve datos de ficha, no material narrativo. Todo lo que le da personalidad a un enano solo se alcanza desde un script Lua.</p>
+
+  <div class="tw">
+    <table>
+      <thead>
+        <tr><th>Dato</th><th>RPC <code>ListUnits</code></th><th>Script Lua</th><th class="num">Ejemplo real</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Nombre, raza, casta, sexo</td><td class="yes">Sí</td><td class="yes">Sí</td><td class="num">Udil Nolêthshorast</td></tr>
+        <tr><td>Profesión y edad</td><td class="yes">Sí</td><td class="yes">Sí</td><td class="num">Fish Cleaner, 24</td></tr>
+        <tr><td>Labores y habilidades</td><td class="yes">Sí</td><td class="yes">Sí</td><td class="num">n=18</td></tr>
+        <tr><td>Posición y flags</td><td class="yes">Sí</td><td class="yes">Sí</td><td class="num">x/y/z</td></tr>
+        <tr><td><b>Rasgos de personalidad</b></td><td class="no">No</td><td class="yes">Sí</td><td class="num">n=50</td></tr>
+        <tr><td><b>Pensamientos y emociones</b></td><td class="no">No</td><td class="yes">Sí</td><td class="num">n=28</td></tr>
+        <tr><td><b>Relaciones</b></td><td class="no">No</td><td class="yes">Sí</td><td class="num">n=9</td></tr>
+        <tr><td><b>Preferencias</b></td><td class="no">No</td><td class="yes">Sí</td><td class="num">n=18</td></tr>
+        <tr><td><b>Estrés, valores, metas</b></td><td class="no">No</td><td class="yes">Sí</td><td class="num">−1100</td></tr>
+        <tr><td><b>Escribir dentro del juego</b></td><td class="no">No</td><td class="yes">Sí</td><td class="num">showAnnouncement</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">Sondeo ejecutado contra la fortaleza real: las 19 rutas probadas existen. Los <code>n=</code> son de un enano concreto y varían.</p>
+</section>
+
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Superficie verificada</span>
+    <h2>Lo que existe de verdad</h2>
+  </div>
+  <p class="measure">Todo lo siguiente está comprobado contra el código fuente de DFHack o el OpenAPI de Player2, y después ejecutado. Nada sale de memoria.</p>
+
+  <dl class="api" style="margin-top:1.3rem">
+    <div class="api-row"><dt>127.0.0.1:5000</dt><dd>Servidor remoto de DFHack. <em>Activo por defecto</em>, sin configurar nada: el listener arranca incondicionalmente en <code>Core.cpp</code>. Se ajusta en <code>dfhack-config/remote-server.json</code>; la variable <code>DFHACK_PORT</code> tiene prioridad.</dd></div>
+    <div class="api-row"><dt>allow_remote</dt><dd><em>Dejadlo en <code>false</code></em>. Solo escucha en localhost. Ponerlo a <code>true</code> permite ejecución de código arbitrario desde la red.</dd></div>
+    <div class="api-row"><dt>RunCommand</dt><dd>Método RPC con <em>ID fijo 1</em>, documentado en la tabla de mensajes built-in. No hace falta <code>BindMethod</code> ni generar código protobuf.</dd></div>
+    <div class="api-row"><dt>dfhack-config/scripts/*.lua</dt><dd>Cualquier fichero ahí se convierte en un <em>comando DFHack</em> con el nombre del fichero. Es el mecanismo que hace innecesario todo lo demás.</dd></div>
+    <div class="api-row"><dt>CoreTextNotification</dt><dd>El <code>print()</code> del script vuelve al cliente como fragmentos de texto. Es como funciona <code>dfhack-run</code>. Da el canal de lectura gratis.</dd></div>
+    <div class="api-row"><dt>dfhack.gui.showAnnouncement</dt><dd>Firma <code>(text[, color[, is_bright]])</code>. Inyecta en el log de anuncios. También hay <code>showZoomAnnouncement</code> (con posición) y <code>showPopupAnnouncement</code> (modal).</dd></div>
+    <div class="api-row"><dt>127.0.0.1:4315</dt><dd>API local de Player2. <em>Usad la IP, no <code>localhost</code></em>: la propia doc avisa de conflictos con IPv6. Si el puerto está ocupado, el real está en <code>%APPDATA%/game.player2.client/api.port</code>.</dd></div>
+    <div class="api-row"><dt>POST /v1/chat/completions</dt><dd>Formato OpenAI: <code>{"messages":[…], "stream":false}</code>. <em>Sin clave de API</em>; solo requiere que el usuario tenga sesión iniciada en la app. <code>GET /v1/health</code> sirve de preflight y devuelve 401 si no la hay.</dd></div>
+  </dl>
+</section>
+
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Trampas · cuatro, todas costaron una ejecución fallida</span>
+    <h2>Dónde nos rompimos</h2>
+  </div>
+  <div class="stack" style="margin-top:0">
+
+    <div class="trap">
+      <h3>Dwarf Fortress no usa CP437 estándar</h3>
+      <p>DF trata los bytes <code>0x00–0x1F</code> como <b>glifos dibujables</b>, no como caracteres de control. <code>dfhack.df2utf()</code> convierte el tabulador <code>0x09</code> en <code>○</code>. Si pasáis una línea entera por esa función, os destroza vuestros propios separadores. Convertid solo las cadenas que vienen del juego. El códec <code>cp437</code> de Python <b>no</b> coincide: mapea <code>0x09</code> a tabulador.</p>
+      <p class="src"><b>FUENTE</b> · library/MiscUtils.cpp:573 → <code>character_table[9] = 0x25CB</code></p>
+    </div>
+
+    <div class="trap">
+      <h3>Los contenedores de DFHack son 0-indexados</h3>
+      <p>Las tablas de Lua empiezan en 1; los vectores de DFHack no, y <b>lanzan error al salirse</b>, no devuelven <code>nil</code>. Con <code>#v == n</code>, los índices válidos son <code>0..n-1</code>. Es el fallo más fácil de cometer para quien venga de Lua puro.</p>
+      <p class="src"><b>FUENTE</b> · docs/dev/Lua API.rst:250 → <i>"using a 0-based numerical index"</i></p>
+    </div>
+
+    <div class="trap">
+      <h3><code>RunLua</code> está roto: no lo useis</h3>
+      <p>Existe un RPC <code>RunLua</code> que parece la vía natural, pero <b>no es un eval genérico</b>: filtra por nombre de módulo. Su mensaje de error dice que acepta <code>rpc.*</code>, <code>*.rpc</code> y <code>*-rpc</code>, pero la segunda rama de la condición exige que los últimos tres caracteres <b>no</b> sean <code>rpc</code>, así que en la práctica solo pasa <code>rpc.*</code>. La condición está invertida respecto a lo documentado. Usad <code>RunCommand</code> sobre un script propio.</p>
+      <p class="src"><b>FUENTE</b> · library/RemoteTools.cpp → <code>CoreService::doRunLuaFunction</code></p>
+    </div>
+
+    <div class="trap">
+      <h3>Sin contexto, el LLM produce mentiras convincentes</h3>
+      <p>La primera salida «buena» fue <i>«maldito trabajo en la cantera, mis huesos duelen»</i>. Sonaba perfecta. El enano era <b>un niño de 8 años</b>, y en DF los niños no tienen oficio. No fue alucinación: el prompt solo llevaba el nombre y la orden de quejarse del trabajo. <b>Es el riesgo principal del proyecto</b>, porque la salida parece correcta y solo alguien que conozca el juego lo detecta.</p>
+      <p class="src"><b>FUENTE</b> · plugins/autolabor/autolabor.cpp:513 y :619 (los niños se saltan en toda asignación de labores) · library/modules/Units.cpp:310</p>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Prueba de que el contexto lo arregla</span>
+    <h2>La misma tubería, con datos reales dentro</h2>
+  </div>
+  <p class="measure">Enano <code>Udil Nolêthshorast</code>, <code>Fish Cleaner</code>, 24 años, estrés <code>−1100</code>, emociones <code>FONDNESS/Talked</code> y <code>DELIGHT/WatchPerform</code>. El modelo devolvió:</p>
+  <pre><b>Estoy tranquilo limpiando peces, aún con el delicioso recuerdo de tu actuación.</b></pre>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Fragmento de la frase</th><th>Dato del que sale</th></tr></thead>
+      <tbody>
+        <tr><td>«Estoy tranquilo»</td><td class="num">ESTRES = −1100 (negativo)</td></tr>
+        <tr><td>«limpiando peces»</td><td class="num">PROFESION = Fish Cleaner</td></tr>
+        <tr><td>«el delicioso recuerdo de tu actuación»</td><td class="num">DELIGHT · WatchPerform</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="measure" style="margin-top:1.2rem">Ningún cambio en el tubo: solo en lo que se le mete dentro. <b>Acentos confirmados en las dos direcciones</b> — se leen nombres con <code>î</code> y <code>ê</code>, y el anuncio con <i>aún</i> y <i>actuación</i> se renderiza bien en el juego.</p>
+</section>
+
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Para decidir</span>
+    <h2>Lo que os toca a vosotros</h2>
+  </div>
+  <ol class="decisions">
+    <li><span><b>Traducir los enums a lenguaje natural.</b> El modelo dijo «<i>tu</i> actuación», hablando con alguien que no está, porque le pasamos <code>WatchPerform</code> en crudo y supuso un interlocutor. <code>unit_thought_type</code> y <code>emotion_type</code> necesitan una tabla de traducción antes del prompt.</span></li>
+    <li><span><b>Qué dispara una llamada.</b> El spike es manual. Hay que decidir si se sondea periódicamente, si se engancha a eventos de DFHack, o si lo lanza el jugador.</span></li>
+    <li><span><b>Presupuesto de latencia.</b> 0,6 s por llamada con prompt corto. Multiplicad por el número de enanos y la frecuencia antes de prometer nada en tiempo real. Falta medir con prompts largos, que es lo que habrá al meter 50 rasgos y 28 pensamientos.</span></li>
+    <li><span><b>Memoria y persistencia.</b> No existe nada. Cada llamada parte de cero, y un enano que no recuerda lo que dijo hace un minuto rompe la ilusión antes que cualquier fallo técnico.</span></li>
+    <li><span><b>Selección de sujeto.</b> El spike elige un adulto al azar. Un mod real necesita criterio: quién habla, cuándo, y qué pasa con los niños y los animales.</span></li>
+    <li><span><b>Dependencia de Player2.</b> Sin clave de API, pero exige la app abierta y con sesión. Si eso es aceptable como requisito de instalación, es una decisión de producto, no técnica.</span></li>
+  </ol>
+</section>
+
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Método</span>
+    <h2>Una advertencia sobre cómo se probó esto</h2>
+  </div>
+  <p class="measure">El cliente se validó primero contra servidores de prueba que imitaban el protocolo. <b>Aun así, tres de las cuatro trampas se colaron</b>, y todas por el mismo motivo: los <i>stubs</i> reproducían lo que suponíamos, no lo que hace DFHack. El falso emitía tabuladores tal cual; usaba tablas de Lua 1-indexadas que devolvían <code>nil</code> en silencio.</p>
+  <ul class="plain" style="margin-top:1.1rem">
+    <li><b>Un stub solo prueba lo que le programáis.</b> Sirve para el framing del protocolo, que sí salió bien a la primera porque se leyó la especificación byte a byte.</li>
+    <li><b>No sirve para el comportamiento del motor.</b> Indexación, codificación de texto y reglas del juego hay que ejercitarlas contra DFHack real, o replicar su comportamiento exacto en el falso, errores incluidos.</li>
+    <li><b>Los mensajes de diagnóstico que adivinan causas hacen daño.</b> Uno de los nuestros culpaba a una instalación incorrecta mientras DFHack devolvía un traceback con la línea exacta. Mostrad lo que responde el motor antes de teorizar.</li>
+  </ul>
+</section>
+
+<footer>
+  Spike de un solo uso: <code>spike.py</code> (cliente sin dependencias), <code>dfhack_spike.lua</code> (script del juego) y <code>HALLAZGOS.md</code> (bitácora completa con citas a fuente). El código es deliberadamente feo y no está pensado para mantenerse; lo que vale es esta superficie verificada y la lista de trampas.
+</footer>
+
+</div>
