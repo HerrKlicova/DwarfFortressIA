@@ -271,6 +271,10 @@ class DFHack(object):
             _normalizar(e)
         return d
 
+    def unidad(self, id_):
+        """Que fue de una unidad que ya no esta entre los ciudadanos."""
+        return self._json("unidad", "id=%d" % int(id_))
+
     def anunciar(self, texto):
         """El lado Lua parte por saltos de linea: showAnnouncement ignora \\n."""
         return self._json("anuncio", texto.replace("\n", "\\n"))
@@ -399,7 +403,7 @@ def _txt(d, por_defecto="?"):
     return d.get("txt") or d.get("n") or por_defecto
 
 
-def construir_prompt(enano, instruccion=None):
+def construir_prompt(enano, instruccion=None, recuerdos=None):
     """Convierte un enano en un prompt acotado y legible."""
     partes = ["Eres %s, %s, de %s anos, en una fortaleza enana."
               % (enano.get("nombre", "un enano"),
@@ -449,6 +453,9 @@ def construir_prompt(enano, instruccion=None):
     if pref:
         partes.append("Te gustan cosas de estos tipos: "
                       + ", ".join(pref[:TOPE_PREFERENCIAS]) + ".")
+
+    if recuerdos:
+        partes.append(recuerdos)
 
     partes.append(instruccion or
                   "Di un pensamiento tuyo en voz alta, en primera persona y en espanol, "

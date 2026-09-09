@@ -143,6 +143,9 @@ local function enano_sonda(u)
         nac_a  = math.floor(try(function() return u.birth_year end, -1)),
         nac_t  = math.floor(try(function() return u.birth_time end, -1)),
         estres = math.floor(try(function() return u.status.current_soul.personality.stress end, 0)),
+        -- Categoria de estres segun DF (0 mas estresado, 6 menos). Mejor que
+        -- inventarse umbrales: es la clasificacion del propio juego.
+        estres_cat = math.floor(try(function() return dfhack.units.getStressCategory(u) end, -1)),
     }
 
     -- Emociones: cada una lleva marca de tiempo del juego (year, year_tick, de
@@ -338,6 +341,29 @@ if sub == 'anuncio' then
     return
 end
 
+-- ---------------------------------------------------------------- unidad
+-- Que fue de un ciudadano que ya no aparece en getCitizens(), que solo
+-- devuelve vivos y cuerdos. OJO: flags1 NO tiene un bit 'dead'; el que hay se
+-- llama 'inactive' y su propio comentario dice que tambien se activa para
+-- criaturas VIVAS que entran o salen del mapa. Se usan las funciones
+-- documentadas, que si distinguen los casos (Lua API.rst:1536-1562).
+if sub == 'unidad' then
+    local id = math.floor(tonumber(opt.id) or -1)
+    local u = try(function() return df.unit.find(id) end, nil)
+    if not u then responder({existe = false, id = id}); return end
+    responder({
+        existe   = true,
+        id       = id,
+        nombre   = dfstr(nombre_de(u)),
+        muerto   = try(function() return dfhack.units.isKilled(u) end, false),
+        fantasma = try(function() return dfhack.units.isGhost(u) end, false),
+        cuerdo   = try(function() return dfhack.units.isSane(u) end, true),
+        activo   = try(function() return dfhack.units.isActive(u) end, false),
+        vivo     = try(function() return dfhack.units.isAlive(u) end, false),
+    })
+    return
+end
+
 -- ---------------------------------------------------------------- enums
 -- Dice que enums traen caption real de DF y cuales hay que humanizar. Es la
 -- unica forma de saberlo sin suponer: se pregunta a la build instalada.
@@ -365,4 +391,4 @@ if sub == 'enums' then
     return
 end
 
-fallo('uso: df_estado estado | enums | enanos [n=] [desde=] [detalle=] [pensamientos=] | anuncio <texto>')
+fallo('uso: df_estado estado | enums | unidad id= | enanos [n=] [desde=] [detalle=] [pensamientos=] | anuncio <texto>')
