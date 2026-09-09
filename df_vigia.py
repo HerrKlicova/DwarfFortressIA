@@ -54,6 +54,10 @@ PESOS = {"muerte": 100, "locura": 90, "desaparicion": 60,
 # "Se acabo, todo se acabo". Estos los cuenta el cronista, en tercera persona.
 EN_TERCERA = {"muerte", "locura", "desaparicion"}
 
+# Sucesos que le pasan a UNA persona concreta. Aunque dos compartan el texto
+# ("ha muerto"), son sucesos distintos y hay que contar los dos.
+UNICOS_POR_PERSONA = {"muerte", "locura", "desaparicion", "relacion", "llegada"}
+
 
 def ahora():
     return time.time()
@@ -194,7 +198,10 @@ class Vigia(object):
                 continue
             # Un suceso que afecta a media fortaleza (un sindrome, por ejemplo)
             # dispara en muchos enanos a la vez y llena la cronica de lo mismo.
-            if e["detalle"] in self.recientes:
+            # Pero eso solo vale para causas COMPARTIDAS: cinco muertes distintas
+            # comparten el texto "ha muerto" y son cinco personas, no una repeticion.
+            # Con la version anterior, matar a cinco enanos narraba uno solo.
+            if e["tipo"] not in UNICOS_POR_PERSONA and e["detalle"] in self.recientes:
                 continue
             candidatos.append(e)
 
@@ -225,6 +232,14 @@ class Vigia(object):
             enano = evento["enano"]            # se tira con lo que dio la sonda
 
         huella = df_memoria.huella_de(enano)
+
+        # Un muerto no narra su muerte. Sin esto, el difunto decia "se acabo,
+        # todo se acabo" en primera persona y en presente.
+        if evento["tipo"] in EN_TERCERA:
+            self._decir(evento, enano, huella,
+                        df_llm.construir_epitafio(enano, evento["detalle"]), estado)
+            return
+
         recuerdos = self.memoria.para_prompt(clave, huella, 3)
         # Las captions de DF estan en ingles y en tercera persona ("pleasure near
         # his own quality building"). Sin avisar, el modelo las traducia literal

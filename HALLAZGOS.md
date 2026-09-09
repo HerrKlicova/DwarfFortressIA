@@ -1039,6 +1039,69 @@ en reflejarse. **Es la primera pregunta que debe responder la sesión larga.** U
 donde alguien muere y nadie lo nota es el fallo narrativo más grave que puede tener este
 proyecto.
 
+## Segundo test de muerte: tres bugs, ninguno del modelo
+
+Con cinco enanos asesinados a propósito, la ejecución destapó tres fallos. **Los tres
+eran míos**; el LLM hizo lo que se le pedía en cada caso.
+
+### 1. El arreglo de la tercera persona nunca llegó a enchufarse
+
+El difunto seguía narrando en primera persona (*"Me siento en paz, como si al fin todo
+el peso se hubiera soltado de mis hombros"*). `EN_TERCERA` estaba definido pero **no se
+usaba en ninguna parte**: la sustitución que insertaba la rama en `_hablar()` no encajó,
+porque el texto que buscaba tenía un comentario en medio.
+
+**Lo grave no es el fallo, es la verificación.** Comprobé que la constante existía y que
+el fichero compilaba, no que la rama fuera alcanzable. Verifiqué lo fácil en vez de lo
+que importaba, que es exactamente el error contra el que va todo este documento.
+
+Ahora se comprueba la alcanzabilidad: que `EN_TERCERA` aparezca **dentro** del cuerpo de
+`_hablar`, que llame a `construir_epitafio` y que salga con `return` antes del prompt
+normal.
+
+### 2. El guardián gritaba lobo: veinte avisos falsos por narración
+
+```
+[fuga] campo txt/n llego sin traducir: 'bravery'
+[fuga] campo txt/n llego sin traducir: 'spouse'
+[fuga] campo txt/n llego sin traducir: 'Crossbow'
+```
+
+**Ninguna de esas era una fuga.** `bravery` y `spouse` son la salida correcta de
+`enum_txt()`, y `Crossbow` u `Observation` son las **captions reales de DF** para esas
+habilidades.
+
+La causa fue el `siempre_enum=True` que se añadió tras la revisión externa: marcaba como
+sospechoso cualquier token suelto en los campos de enum. Sobre-alcance. El guardián
+volvió a la detección **solo por forma** (`ALL_CAPS`, `CamelCase`, guiones bajos).
+
+El precio, y conviene decirlo: una palabra capitalizada suelta como `Syndrome` se cuela,
+porque por forma es indistinguible de `Crossbow`, que es legítima. Ese caso se ataja en
+origen con `enum_txt()` en el lado Lua, no en la red de seguridad.
+
+**Lección**: una red que avisa de veinte cosas por narración, todas falsas, es peor que
+no tener red — entierra el aviso verdadero cuando llegue.
+
+### 3. Cinco muertes se narraron como una
+
+La ventana anti-repetición que se añadió para los sucesos colectivos —un síndrome
+afectando a media fortaleza— **suprimió cuatro de las cinco muertes**, porque todas
+comparten el texto `"ha muerto"`.
+
+Son cinco personas distintas, no una repetición. Ahora los sucesos que le pasan a alguien
+en concreto (`muerte`, `locura`, `desaparicion`, `relacion`, `llegada`) están exentos de
+esa ventana. Verificado que cinco muertes se cuentan las cinco **y** que un síndrome
+compartido por cinco se sigue contando una sola vez.
+
+### Volumen de sucesos: 52 a 70 por vuelta
+
+Con 89 ciudadanos (llegó una oleada de migrantes) el vigía detecta entre 20 y 70 sucesos
+en cada vuelta de cinco segundos. Los frenos están haciendo todo el trabajo de selección.
+
+No es un fallo, pero sí el dato que confirma la duda de la revisión externa sobre el
+ritmo: **hay muchísimo más material del que se puede contar**, así que el criterio de
+qué merece contarse importa más que la detección. Es la pregunta de la sesión larga.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a

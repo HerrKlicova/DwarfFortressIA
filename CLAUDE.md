@@ -88,6 +88,12 @@ Un stub sirve para el framing del protocolo, que es una especificación escrita.
 sirve para indexación, codificación de texto ni reglas del juego. Eso se ejercita
 contra DFHack o no se ha probado.
 
+**Y al editar código: comprobar que la rama es ALCANZABLE, no que la constante existe.**
+Una sustitución de texto puede no encajar en silencio. Pasó con la narración en tercera
+persona: `EN_TERCERA` estaba definido, el fichero compilaba, y la rama no se usaba en
+ninguna parte. Verificar lo fácil en vez de lo que importa da una falsa sensación de
+haber probado.
+
 ---
 
 ## Hechos ya verificados (no hace falta volver a medirlos)

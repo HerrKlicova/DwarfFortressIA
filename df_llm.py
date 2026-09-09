@@ -431,16 +431,20 @@ def _humanizar(t):
 def legible(valor, origen="?", siempre_enum=False):
     """Punto de paso obligatorio para el texto que va al prompt.
 
-    La forma sola no basta: "Syndrome" es una palabra capitalizada sin mayuscula
-    interna, indistinguible de un nombre como "Tulon". Por eso los campos que
-    SIEMPRE vienen de un enum (rasgo, emocion, causa, habilidad, preferencia,
-    tipo de relacion) se marcan con siempre_enum: ahi cualquier token suelto es
-    un identificador, porque los nombres propios viven en otros campos."""
+    Detecta SOLO por forma: ALL_CAPS, CamelCase o guiones bajos. Hubo una version
+    que ademas marcaba como sospechoso cualquier token suelto en los campos de
+    enum, y fue un error: 'bravery' y 'spouse' son la salida correcta de
+    enum_txt(), y 'Crossbow' u 'Observation' son las captions reales de DF para
+    esas habilidades. Los marcaba como fuga y llenaba la consola de avisos
+    falsos, veinte por narracion.
+
+    El precio es que una palabra capitalizada suelta como 'Syndrome' se cuela:
+    por forma es indistinguible de 'Crossbow', que es legitima. Ese caso se
+    ataja en origen, con enum_txt() en el lado Lua.
+
+    siempre_enum se conserva por compatibilidad y ya no cambia nada."""
     t = str(valor if valor is not None else "").strip()
-    if not t:
-        return t
-    sospechoso = _parece_identificador(t) or (siempre_enum and " " not in t)
-    if sospechoso:
+    if t and _parece_identificador(t):
         FUGAS.append((origen, t))
         return _humanizar(t)
     return t
