@@ -842,7 +842,7 @@ La lección se repite: **el modelo devuelve lo que le das**. Las tres veces que 
 visto «alucinar» al LLM en este proyecto —la cantera del niño, las cartas a la esposa, y
 ahora las cifras— el fallo estaba en el prompt, no en el modelo.
 
-### ¿Cuántos rasgos? La medición dice que da igual
+### ¿Cuántos rasgos? Primera tirada
 
 | Rasgos en el prompt | Solapamiento léxico | Prompt medio |
 |---|---|---|
@@ -850,15 +850,10 @@ ahora las cifras— el fallo estaba en el prompt, no en el modelo.
 | 5 | 0,068 | 1 143 car. |
 | 8 | 0,064 | 1 223 car. |
 
-Diferencia máxima: **0,009**. Con 6 enanos son 15 pares por grupo, así que eso es ruido.
-
-**El número de rasgos no influye en que los enanos suenen distintos.** Contradice tanto
-el plan de bajar a 3 como el temor de que 3 los homogeneizara: la variedad no sale de
-los rasgos, sale de las relaciones, el oficio, el estrés y el pensamiento que dispara.
-
-Se queda en **8**, porque no penaliza y da textura más específica —a 8 rasgos aparecen
-la poesía y el celo por el taller que a 3 no salen— y el coste extra son 130 caracteres
-de prompt, que la fase 2 demostró que no afectan a la latencia.
+Diferencia máxima: 0,009 con 15 pares por grupo. En su momento se leyó como «el número
+de rasgos no influye», pero **una sola tirada no sostiene esa conclusión**: la segunda
+ejecución (más abajo) invierte el orden y demuestra que lo que hay es ruido de medida.
+La conclusión buena está en *«La métrica de solapamiento es inconcluyente»*.
 
 ### El tic del «Mientras»: 16 de 18 respuestas
 
