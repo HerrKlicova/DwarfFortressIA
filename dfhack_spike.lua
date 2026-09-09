@@ -16,9 +16,16 @@
 local args = {...}
 local sub = args[1]
 
--- df2utf: DF guarda las cadenas en CP437; el socket lleva UTF-8.
+-- OJO: solo se convierten las cadenas que vienen de DF, nunca nuestro propio
+-- andamiaje. En CP437 el byte 0x09 no es un tabulador sino el caracter ○, asi
+-- que pasar una linea entera por df2utf destroza los separadores.
 local function out(s)
-    print(dfhack.df2utf(tostring(s)))
+    print(tostring(s))
+end
+
+-- DF guarda las cadenas en CP437; el socket lleva UTF-8.
+local function dfstr(s)
+    return dfhack.df2utf(tostring(s))
 end
 
 local function get_citizens()
@@ -31,7 +38,7 @@ end
 if sub == 'dwarf' then
     local citizens = get_citizens()
     if not citizens then
-        out('ERROR\tno hay ciudadanos (¿fortaleza cargada? ¿modo fortaleza?)')
+        out('ERROR|no hay ciudadanos (fortaleza cargada? modo fortaleza?)')
         return
     end
     local u = citizens[1]
@@ -49,8 +56,8 @@ if sub == 'dwarf' then
         if ok3 then name = s end
     end
 
-    out('ID\t' .. tostring(u.id))
-    out('NOMBRE\t' .. tostring(name or '(sin nombre)'))
+    out('ID|' .. tostring(u.id))
+    out('NOMBRE|' .. dfstr(name or '(sin nombre)'))
     return
 end
 
@@ -60,7 +67,7 @@ end
 if sub == 'fields' then
     local citizens = get_citizens()
     if not citizens then
-        out('ERROR\tno hay ciudadanos')
+        out('ERROR|no hay ciudadanos')
         return
     end
     local u = citizens[1]
@@ -68,13 +75,13 @@ if sub == 'fields' then
     local function probe(label, fn)
         local ok, v = pcall(fn)
         if not ok or v == nil then
-            out('NO\t' .. label)
+            out('NO|' .. label)
         elseif type(v) == 'userdata' or type(v) == 'table' then
             local n = nil
             pcall(function() n = #v end)
-            out('OK\t' .. label .. '\t' .. (n and ('n=' .. n) or 'compound'))
+            out('OK|' .. label .. '|' .. (n and ('n=' .. n) or 'compound'))
         else
-            out('OK\t' .. label .. '\t' .. type(v))
+            out('OK|' .. label .. '|' .. type(v))
         end
     end
 
@@ -106,7 +113,7 @@ if sub == 'announce' then
     for i = 2, #args do parts[#parts + 1] = args[i] end
     local text = table.concat(parts, ' ')
     if text == '' then
-        out('ERROR\tsin texto')
+        out('ERROR|sin texto')
         return
     end
     -- El socket trae UTF-8; DF quiere CP437.
@@ -114,11 +121,11 @@ if sub == 'announce' then
         dfhack.gui.showAnnouncement(dfhack.utf2df(text), COLOR_YELLOW, true)
     end)
     if ok then
-        out('OK\tanuncio inyectado')
+        out('OK|anuncio inyectado')
     else
-        out('ERROR\tshowAnnouncement fallo: ' .. tostring(err))
+        out('ERROR|showAnnouncement fallo: ' .. tostring(err))
     end
     return
 end
 
-out('ERROR\tuso: dfhack_spike dwarf|fields|announce <texto>')
+out('ERROR|uso: dfhack_spike dwarf / fields / announce <texto>')

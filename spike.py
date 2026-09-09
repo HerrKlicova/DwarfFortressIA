@@ -252,8 +252,8 @@ def paso1_leer_enano(sock):
 
     nombre = None
     for line in salida.splitlines():
-        if line.startswith("NOMBRE\t"):
-            nombre = line.split("\t", 1)[1].strip()
+        if line.startswith("NOMBRE|"):
+            nombre = line.split("|", 1)[1].strip()
     if not nombre:
         print("    FALLO: no vino ninguna linea NOMBRE.")
         return None
@@ -328,7 +328,7 @@ def paso3_anunciar(sock, texto):
         return False
     for line in salida.splitlines():
         print("      | " + line)
-    if "OK\t" in salida:
+    if "OK|" in salida:
         print("    -> Mira el log de anuncios en el juego.")
         return True
     return False
