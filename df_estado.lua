@@ -94,6 +94,14 @@ local function estado_base()
         -- Si existe y es un contador monotono, apunta a asignacion secuencial de
         -- unit_id sin reciclaje. Es indicio, no prueba. Se prueba que exista.
         unit_next_id = math.floor(try(function() return df.global.unit_next_id end, -1)),
+        -- Identifica la PARTIDA. Sin esto, empezar otra fortaleza haria que el
+        -- enano 272 nuevo heredase los recuerdos del 272 viejo: los unit_id
+        -- vuelven a empezar en cada mundo.
+        partida = try(function() return dfhack.world.ReadWorldFolder() end, ''),
+        -- Fecha del juego: para fechar la cronica en anos enanos, no en hora local.
+        anio = math.floor(try(function() return dfhack.world.ReadCurrentYear() end, -1)),
+        mes  = math.floor(try(function() return dfhack.world.ReadCurrentMonth() end, -1)),
+        dia  = math.floor(try(function() return dfhack.world.ReadCurrentDay() end, -1)),
     }
 end
 

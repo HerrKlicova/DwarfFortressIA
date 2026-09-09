@@ -258,6 +258,11 @@ class DFHack(object):
     def estado(self):
         return self._json("estado")
 
+    def sonda(self):
+        """Sondeo barato de TODOS los ciudadanos: lo minimo para detectar
+        cambios. Medido: 15 KB y 5 ms frente a los 344 KB y 40 ms de completo."""
+        return self._json("enanos", "n=0", "detalle=sonda", "adultos=0")
+
     def enanos(self, n=5, detalle="basico", pensamientos=8, desde=0, adultos=True):
         d = self._json("enanos", "n=%d" % n, "desde=%d" % desde,
                        "detalle=%s" % detalle, "pensamientos=%d" % pensamientos,
@@ -462,6 +467,10 @@ def orden_estado(df, _args):
     print("en pausa      : %s" % e.get("pausa"))
     print("frame         : %s" % e.get("frame"))
     print("ciudadanos    : %s" % e.get("n_ciudadanos"))
+    print("partida       : %s" % e.get("partida"))
+    print("fecha del juego: ano %s, mes %s, dia %s"
+          % (e.get("anio"), e.get("mes"), e.get("dia")))
+    print("unit_next_id  : %s" % e.get("unit_next_id"))
     if not (e.get("mundo") and e.get("mapa")):
         print("\nNo hay fortaleza cargada: 'listar' y 'hablar' no funcionaran.")
 

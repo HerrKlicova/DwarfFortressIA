@@ -102,6 +102,9 @@ contra DFHack o no se ha probado.
 | Con el juego en pausa | `RunCommand` responde normal, no se cuelga ni encola |
 | Descargar y recargar partida | **El mismo socket sobrevive**. Solo hay que comprobar `mundo`/`mapa` antes de tocar unidades |
 | Cerrar DF | `ConnectionResetError` limpio y capturable |
+| `unit_id` al guardar y recargar | **Estable**: 64 de 64 siguen apuntando al mismo enano. `hist_figure_id` también, y ninguno vale `-1` |
+| Reutilización de `unit_id` | `unit_next_id` es un contador secuencial (5486, con el id más alto en 5483 y 5166 huecos). Indicio fuerte de que no se reciclan; aun así la memoria guarda huella |
+| Coste de sondear los 64 | `sonda` 15 KB y 5 ms · `basico` 9 KB y 1 ms · `completo` **344 KB y 40 ms** (≈4 frames congelados) |
 
 ### Trampas de las APIs
 
@@ -116,3 +119,8 @@ contra DFHack o no se ha probado.
 - **El RPC `RunLua` no sirve**: filtra por nombre de módulo con la condición invertida.
 - **El RPC `ListUnits` tampoco**: da nombre y oficio, pero ni rasgos, ni pensamientos,
   ni relaciones. Todo eso solo se alcanza desde un script Lua.
+- **Nunca sondear con `detalle=completo`.** Son 344 KB y 40 ms de Lua por vuelta: casi
+  cuatro frames congelados. Para eso está `detalle=sonda`.
+- **La memoria se guarda por partida.** Los `unit_id` vuelven a empezar en cada mundo,
+  así que sin separar por `dfhack.world.ReadWorldFolder()` el enano 272 de una fortaleza
+  heredaría los recuerdos del 272 de otra.
