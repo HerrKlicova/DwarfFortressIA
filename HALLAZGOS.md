@@ -967,6 +967,26 @@ Verificado: con datos que simulan un camino que olvidó traducir, no sobrevive n
 identificador crudo al prompt, los nombres propios quedan intactos y las cinco fugas se
 registran.
 
+### La carpeta de guardados no está donde parece
+
+Se dio de memoria la ruta `<Dwarf Fortress>/save` y **no existe**. En la versión de
+Steam los guardados están en:
+
+```
+%APPDATA%\Bay 12 Games\Dwarf Fortress\save
+```
+
+es decir, `C:\Users\<usuario>\AppData\Roaming\Bay 12 Games\Dwarf Fortress\save`.
+
+La documentación de DFHack ya avisaba de esto para su propia instalación
+(`Lua API.rst:942`: *"la carpeta de instalación es extremadamente probable que esté en
+otro sitio cuando DFHack se instala desde Steam"*), y no se leyó esa advertencia como
+aplicable también a los guardados.
+
+`estado` ahora imprime `dfhack.getSavePath()` y `dfhack.getDFPath()`, de modo que la
+ruta la dice el juego y no hace falta acordarse. Es el mismo principio que el resto del
+proyecto: **preguntar al motor en vez de suponer**.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a
