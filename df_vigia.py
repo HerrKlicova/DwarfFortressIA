@@ -49,6 +49,11 @@ VENTANA_REPETIDOS = 5     # no repetir el mismo suceso aunque le pase a otro ena
 PESOS = {"muerte": 100, "locura": 90, "desaparicion": 60,
          "relacion": 50, "estres": 40, "emocion": 20, "llegada": 15}
 
+# Sucesos que el propio enano NO puede narrar en primera persona. La primera
+# ejecucion con una muerte real le pidio al muerto que hablara en presente:
+# "Se acabo, todo se acabo". Estos los cuenta el cronista, en tercera persona.
+EN_TERCERA = {"muerte", "locura", "desaparicion"}
+
 
 def ahora():
     return time.time()
@@ -231,7 +236,11 @@ class Vigia(object):
                  "a nadie ni saludes. Sin comillas, sin cifras y sin jerga."
                  % df_llm.legible(evento["detalle"], "evento.detalle", siempre_enum=True))
         prompt = df_llm.construir_prompt(enano, instruccion=instr, recuerdos=recuerdos)
+        self._decir(evento, enano, huella, prompt, estado)
 
+    def _decir(self, evento, enano, huella, prompt, estado):
+        """Llama al LLM, anuncia, apunta en la cronica y en la memoria."""
+        clave = evento["clave"]
         self.p2 = self.p2 or df_llm.Player2()
         t0 = time.perf_counter()
         try:

@@ -132,6 +132,9 @@ contra DFHack o no se ha probado.
   En el lado Lua se sigue usando `enum_txt()`; `legible()` es la red por si un camino
   nuevo lo olvida. **Se puso porque el invariante escrito no bastó**: la misma clase de
   fallo apareció tres veces en caminos distintos.
+- **Hay sucesos que el propio enano no puede narrar.** Muerte, locura y desaparición van
+  en **tercera persona** por `construir_epitafio()`. Con el prompt normal (*"esto es lo
+  que acaba de pasarte"*) el difunto decía *"se acabó, todo se acabó"* en presente.
 - **Cuidado con las palabras sueltas de la instruccion.** *"Hablas para ti mismo
   mientras trabajas"* hizo que 14 de 18 respuestas empezaran por *"Mientras..."*. Y no se
   arregla diciendo «no uses esa palabra»: nombrarla la vuelve a meter en el contexto.

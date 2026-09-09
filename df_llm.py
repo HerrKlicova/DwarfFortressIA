@@ -528,6 +528,36 @@ def construir_prompt(enano, instruccion=None, recuerdos=None, tope_rasgos=None):
     return "\n".join(partes)
 
 
+def construir_epitafio(enano, detalle):
+    """Prompt en TERCERA persona, para sucesos que el propio enano no puede
+    contar. Un muerto no narra su muerte: la primera version le pedia a un
+    cadaver que dijera "se acabo, todo se acabo" en presente y primera persona.
+
+    Lo escribe el cronista de la fortaleza, no el enano."""
+    quien = enano.get("nombre", "un enano")
+    partes = ["Eres el cronista de una fortaleza enana. Anota lo que le ha ocurrido a "
+              "uno de sus habitantes."]
+    partes.append("Se llamaba %s, %s, de %s anos."
+                  % (quien, enano.get("profesion", "sin oficio"), enano.get("edad", "?")))
+
+    rel = enano.get("relaciones") or []
+    if rel:
+        partes.append("Dejaba atras a: "
+                      + ", ".join("%s (%s)" % (r.get("quien"), _txt(r, r.get("tipo", "")))
+                                  for r in rel) + ".")
+    hab = _mejores_habilidades(enano.get("habilidades", []), 3)
+    if hab:
+        partes.append("Se le daba bien: "
+                      + ", ".join("%s (%s)" % (_txt(h), h.get("nivel", "?")) for h in hab) + ".")
+
+    partes.append("Lo que ha ocurrido: %s." % legible(detalle, "epitafio.detalle",
+                                                      siempre_enum=True))
+    partes.append("Escribelo en TERCERA persona, en espanol, en UNA o DOS frases secas, "
+                  "como una anotacion de cronica. NUNCA en primera persona: el o ella no "
+                  "puede contarlo. Sin comillas, sin cifras y sin jerga.")
+    return "\n".join(partes)
+
+
 # ---------------------------------------------------------------- ordenes
 
 def orden_estado(df, _args):

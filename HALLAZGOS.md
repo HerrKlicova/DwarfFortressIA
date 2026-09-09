@@ -992,6 +992,53 @@ Dos errores encadenados, y el segundo es el que enseña algo: al primero le busq
 atajo automático y **lo di por bueno antes de comprobarlo**, en un proyecto cuya regla
 principal es no dar nada por bueno sin verificarlo.
 
+## Test de muerte controlada ✅ y un defecto narrativo grave
+
+Ejecutado copiando el guardado y matando a un ciudadano con `exterminate this` de
+DFHack, en vez de esperar a que ocurriera jugando.
+
+**El camino técnico funciona.** La crónica dice:
+
+```
+[ano 105, mes 7, dia 25] Tosid Nishkesh -- ha muerto
+```
+
+`ha muerto`, no `ha desaparecido`. `isKilled` dispara correctamente y queda cerrado el
+riesgo señalado en la revisión externa. Recordar que aquí ya hubo una corrección previa:
+`flags1.dead` no existe y `inactive` también se activa para criaturas vivas que salen
+del mapa.
+
+### Pero el muerto narraba su propia muerte
+
+> *"**Siento** un nudo en el pecho que no se afloja. **Se acabó, todo se acabó**, y solo
+> me queda esta rabia sorda porque ya no puedo hacer nada más."*
+
+Eso lo dice Tosid. El difunto. En primera persona y en presente.
+
+El defecto es de diseño, no de detección: `_hablar()` construía siempre un prompt en
+segunda persona (*"Esto es lo que acaba de pasarte..."*), y para una muerte eso equivale
+a pedirle a un cadáver que hable.
+
+**Es exactamente el riesgo que la revisión externa señaló como prioritario**: la muerte
+es donde la crónica más importa y donde más duele equivocarse. El camino técnico estaba
+bien y el narrativo mal, que es peor, porque el resultado *parece* correcto.
+
+Corregido: `muerte`, `locura` y `desaparicion` pasan por `construir_epitafio()`, un
+prompt en **tercera persona** escrito desde la voz del cronista, con los datos reales del
+difunto —oficio, edad, a quién dejaba atrás, en qué era bueno— y prohibición explícita
+de la primera persona.
+
+### Nadie reaccionó a la muerte
+
+En las vueltas siguientes al fallecimiento, ningún otro enano lo mencionó. Tosid estaba
+casado con Tirist Atírshis (la pareja del caso de coherencia), así que la muerte debería
+haber cambiado sus `relationship_ids` y disparado un evento de relación.
+
+No se ha determinado si no saltó, si lo suprimieron los frenos, o si el cambio tarda más
+en reflejarse. **Es la primera pregunta que debe responder la sesión larga.** Un fuerte
+donde alguien muere y nadie lo nota es el fallo narrativo más grave que puede tener este
+proyecto.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a
