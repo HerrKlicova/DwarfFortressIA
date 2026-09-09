@@ -628,6 +628,56 @@ Es la misma familia que la trampa de CP437: **el lado Lua no está en el mismo m
 de convenciones que el lado Python**, y cada vez que cruzamos texto o números entre
 los dos hay que decidir explícitamente el formato.
 
+## FASE 2 — Base estable ✅ funcionando
+
+`CLAUDE.md` (invariantes), `df_estado.lua` (contrato JSON) y `df_llm.py` (servicio).
+Validado contra el juego el 2026-09-09: fortaleza de 64 ciudadanos, 40 adultos.
+
+| Orden | Resultado |
+|---|---|
+| `df_llm.py estado` | mundo/mapa cargados, 64 ciudadanos |
+| `df_llm.py listar 5` | 5 enanos con oficio y estrés, incluido uno con estrés **positivo** (+17067) |
+| `df_llm.py hablar 2` | Dos enanos hablan y se anuncian en el juego |
+
+**El prompt acotado funciona:** de los 4 887 caracteres del volcado crudo a **952 y
+1 030** en casos reales, sin perder sustancia. Y **el troceado de anuncios se ejercitó
+solo**: una de las respuestas traía un salto de línea y salió como **2 anuncios**, que
+es exactamente para lo que estaba la lección del E5.
+
+### Anomalía abierta: la latencia subió y no sé por qué
+
+| | Prompt | Respuesta | Latencia |
+|---|---|---|---|
+| E1 (fase 1) | 4 887 car. | ~509-615 car. | **0,93 – 1,04 s** |
+| Servicio | 952 car. | ~290 car. | **1,45 s** |
+| Servicio | 1 030 car. | ~330 car. | **1,41 s** |
+
+Prompt **cinco veces más pequeño**, respuesta **la mitad de larga**, y aun así **un 48%
+más de tiempo**. Las dos muestras nuevas son consistentes entre sí pero quedan fuera de
+la banda de E1, que era estrecha.
+
+**No hay explicación todavía y no conviene inventarla.** Puede ser carga del modelo,
+estado de la app, o algo del propio servicio. Son solo dos muestras frente a cinco.
+Antes de sacar conclusiones hay que volver a medir con el mismo método del E1.
+
+### Los enums crudos siguen filtrándose al texto
+
+Ya se anotó en el spike y sigue vivo. Un albañil dijo *"ni siquiera me molesta
+desperdiciar un poco de material de más"*, que viene de un rasgo con nombre de enum, y
+el modelo lo interpretó bien por casualidad. Traducir `unit_thought_type`,
+`emotion_type` y `personality_facet_type` a lenguaje natural sigue pendiente.
+
+### El modelo habla *a* alguien en vez de *sobre* sí mismo
+
+Un alcalde con esposa registrada respondió *"Mi querida Catten, mientras tallo esta
+flauta..."*: una carta, no un pensamiento. Es la misma forma del *"tu actuación"* del
+spike. El prompt lista `Personas que te importan: Catten (SPOUSE)` y el modelo asume un
+interlocutor presente.
+
+No es un fallo técnico —la frase es coherente y en primera persona— pero en un log de
+anuncios queda raro. Se arregla en la instrucción final del prompt, diciendo
+explícitamente que hable para sí mismo y que no se dirija a nadie.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a
