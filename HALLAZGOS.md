@@ -983,9 +983,14 @@ La documentación de DFHack ya avisaba de esto para su propia instalación
 otro sitio cuando DFHack se instala desde Steam"*), y no se leyó esa advertencia como
 aplicable también a los guardados.
 
-`estado` ahora imprime `dfhack.getSavePath()` y `dfhack.getDFPath()`, de modo que la
-ruta la dice el juego y no hace falta acordarse. Es el mismo principio que el resto del
-proyecto: **preguntar al motor en vez de suponer**.
+Se intentó resolverlo preguntando al juego con `dfhack.getSavePath()`, pero **tampoco
+devuelve esa ruta**, así que se revirtió: añadía dos campos al contrato sin resolver
+nada. La ruta buena queda escrita en `CLAUDE.md` como hecho verificado, que para este
+caso es suficiente.
+
+Dos errores encadenados, y el segundo es el que enseña algo: al primero le busqué un
+atajo automático y **lo di por bueno antes de comprobarlo**, en un proyecto cuya regla
+principal es no dar nada por bueno sin verificarlo.
 
 ## Cómo ejecutarlo
 

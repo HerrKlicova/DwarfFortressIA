@@ -105,7 +105,7 @@ contra DFHack o no se ha probado.
 | `unit_id` al guardar y recargar | **Estable**: 64 de 64 siguen apuntando al mismo enano. `hist_figure_id` también, y ninguno vale `-1` |
 | Reutilización de `unit_id` | `unit_next_id` es un contador secuencial (5486, con el id más alto en 5483 y 5166 huecos). Indicio fuerte de que no se reciclan; aun así la memoria guarda huella |
 | Rasgos en el prompt | **8**. Medido: el numero no afecta a que suenen distintos (la metrica se invierte entre tiradas), pero si a la riqueza (26 → 29 palabras distintas de 3 a 8) |
-| Carpeta de guardados | En la version de Steam **NO** esta bajo la carpeta del juego: `%APPDATA%\Bay 12 Games\Dwarf Fortress\save` (verificado en esta instalacion). `dfhack.getSavePath()` la reporta, y el comando `estado` la imprime |
+| Carpeta de guardados | En la version de Steam **NO** esta bajo la carpeta del juego: `%APPDATA%\Bay 12 Games\Dwarf Fortress\save` (verificado en esta instalacion). **`dfhack.getSavePath()` no devuelve esa ruta**, asi que no sirve de atajo: usar la de arriba |
 | Coste de sondear los 64 | `sonda` 15 KB y 5 ms · `basico` 9 KB y 1 ms · `completo` **344 KB y 40 ms** (≈4 frames congelados) |
 
 ### Trampas de las APIs
