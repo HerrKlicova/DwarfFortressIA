@@ -541,6 +541,11 @@ def orden_estado(df, _args):
     print("fecha del juego: ano %s, mes %s, dia %s"
           % (e.get("anio"), e.get("mes"), e.get("dia")))
     print("unit_next_id  : %s" % e.get("unit_next_id"))
+    print()
+    print("CARPETA DEL GUARDADO (la que hay que copiar antes de tocar nada):")
+    print("  %s" % (e.get("ruta_save") or "(no disponible)"))
+    print("carpeta de Dwarf Fortress:")
+    print("  %s" % (e.get("ruta_df") or "(no disponible)"))
     if not (e.get("mundo") and e.get("mapa")):
         print("\nNo hay fortaleza cargada: 'listar' y 'hablar' no funcionaran.")
 

@@ -98,6 +98,11 @@ local function estado_base()
         -- enano 272 nuevo heredase los recuerdos del 272 viejo: los unit_id
         -- vuelven a empezar en cada mundo.
         partida = try(function() return dfhack.world.ReadWorldFolder() end, ''),
+        -- La ruta REAL del guardado. En la version de Steam no esta donde uno
+        -- espera: la propia doc de DFHack avisa de que la instalacion "es
+        -- extremadamente probable que este en otro sitio" (Lua API.rst:942).
+        ruta_save = try(function() return dfhack.getSavePath() end, ''),
+        ruta_df   = try(function() return dfhack.getDFPath() end, ''),
         -- Fecha del juego: para fechar la cronica en anos enanos, no en hora local.
         anio = math.floor(try(function() return dfhack.world.ReadCurrentYear() end, -1)),
         mes  = math.floor(try(function() return dfhack.world.ReadCurrentMonth() end, -1)),
