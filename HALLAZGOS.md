@@ -1970,6 +1970,64 @@ la misma frecuencia baja.
 | + memoria en prosa | 0/10 | **1** | 4/10 | **1/10** |
 | + memoria por temas + filtro | 0/10 | **0** | 3/10 | **0** |
 
+## Quinta tirada: la planta arreglada, y aquí se para de ajustar el prompt
+
+### La habilidad ya no es una cosa
+
+> *"cómo va mejorando **mi habilidad con las plantas**"* · *"haber **mejorado un poco más
+> con las plantas**"* · *"**mejorado con las plantas**"*
+
+De **7 de 10 mal** a **0**. Y el otro relleno también se lee bien:
+
+> *"ese aburrimiento por **no haber podido crear algo con mis manos**"*
+
+Eso es `NeedsUnfulfilled` con su `need_type` puesto, en una frase que dice lo que el dato
+dice. El sistema de huecos está funcionando.
+
+### Lo que queda, y por qué se deja
+
+| | |
+|---|---|
+| Fuera de personaje | 0 de 10 |
+| Respuestas idénticas | 0 |
+| «Mejoré una planta» | **0** (era 7 de 10) |
+| Afirmaciones sin ancla | **2 de 10** |
+
+Las dos:
+
+> 3 · *"me alegra saber que **pronto podré volver a verla**"* — un reencuentro futuro que
+> no está en ninguna parte.
+> 5 · *"cómo va creciendo **lo que planté**"* — la habilidad es de cultivo; que él plantara
+> algo concreto, no está dicho.
+
+Y un tic nuevo: **`"La verdad es que"` abre 5 de 10**. Es muletilla, no falsedad.
+
+**Aquí se para.** Van cinco tiradas ajustando el prompt y las últimas tres se mueven
+dentro del ruido con muestras de diez. Además, la muletilla no se puede atacar
+nombrándola —esa lección ya está escrita y ya la hemos violado una vez— y no tiene el
+arreglo estructural que sí tenían las anteriores. Seguir aquí es pulir la superficie del
+único escalón que ya está medido, en vez de subir al siguiente.
+
+### El arco entero, en una tabla
+
+| | escenas | idénticas | apertura top | fuera de personaje | «planta» |
+|---|---|---|---|---|---|
+| sin freno | 1 de 1 | — | — | — | — |
+| freno de la costura | 0/10 | — | 7/10 | 0 | — |
+| + barajado | 0/10 | — | 3/10 | 0 | — |
+| + memoria en prosa | 0/10 | 1 | 4/10 | **1/10** | — |
+| + memoria por temas + filtro | 0/10 | 0 | 3/10 | 0 | **7/10** |
+| + forma de los huecos | **2/10** | 0 | 5/10 | 0 | **0** |
+
+Lo único que sale de estas cinco tiradas como resultado sólido son **dos piezas de
+arquitectura** —el filtro de salida y la memoria por temas— y **dos defectos de datos**
+—la forma de los huecos y el orden de selección—. Los números de estilo se mueven poco y
+no sostienen ninguna conclusión.
+
+> Y de los defectos encontrados en toda la ronda, **ninguno estaba en el modelo**: uno en
+> el prompt, uno en mi documentación, uno en el banco de pruebas, uno en una pieza que
+> hacía lo contrario de su nombre, y uno en la forma de una frase en inglés.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a
