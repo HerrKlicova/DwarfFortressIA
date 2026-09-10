@@ -234,6 +234,23 @@ el fallo está ahí.
   > No se notó porque la sonda sí elegía bien, así que el disparador del suceso llegaba
   > correcto y la respuesta sonaba bien. Lo estropeado era el bloque de contexto. Es el
   > mismo patrón que el epitafio vacío: **prosa buena tapando datos malos**.
+- **El español marca género en casi cada frase, y sin el dato el modelo lo inventa.**
+  Medido con Tirist Atírshis, que es mujer: la crónica la llamó *"**esposo** de Tosid"* y
+  ella misma dijo de su marido *"me gustaría volver a **verla**"*. Dos géneros mal en dos
+  frases, porque el prompt no llevaba el sexo de nadie.
+  Hace falta el de **los dos**: el del que habla y el de cada relación —`spouse` no dice
+  si es esposo o esposa, y el oficio viene en inglés, que tampoco lo marca. Va explícito
+  (*"Eres MUJER: habla de ti en femenino"*), no implícito: decir el dato sin pedir la
+  concordancia no basta.
+  Y el castellano **nuestro** también cuenta: *"te sientes muy tranquilo"* era masculino
+  para toda la fortaleza. Las frases propias van en **sustantivos**, no en adjetivos
+  (*"por dentro sientes una gran calma"*).
+- **Si el prompt no dice cómo pasó algo, el modelo lo rellena.** El epitafio decía solo
+  *"ha muerto"* y el cronista escribió *"murió **mientras trabajaba en las minas**"* —y
+  luego añadió *"sin que se conozcan más detalles"*, después de haber dado el sitio por
+  cierto en la primera frase. Hay que **prohibirlo explícitamente**: *"no inventes dónde
+  ni cómo ocurrió; si no está escrito, no se sabe"*. Es la regla 1 de la doctrina, y el
+  hueco de información es lo que la dispara.
 - **La memoria se guarda por partida.** Los `unit_id` vuelven a empezar en cada mundo,
   así que sin separar por `dfhack.world.ReadWorldFolder()` el enano 272 de una fortaleza
   heredaría los recuerdos del 272 de otra.

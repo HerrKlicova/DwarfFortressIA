@@ -483,12 +483,52 @@ def _txt(d, por_defecto="?"):
                    siempre_enum=True)
 
 
+def _sexo(d, con_articulo=False):
+    """'hombre' / 'mujer', o cadena vacia si DF no lo resolvio.
+
+    El espanol marca genero en casi cada frase, y sin este dato el modelo lo
+    adivina. Medido con Tirist Atirshis, que es mujer: la narro como "esposo de
+    Tosid" y se refirio a su marido diciendo "me gustaria volver a verla".
+    Dos generos mal en dos frases.
+
+    Si el campo no viene, se devuelve vacio y la frase se construye sin el:
+    ningun valor de relleno llega al prompt."""
+    s = (d or {}).get("sexo")
+    if s == "f":
+        return "una mujer" if con_articulo else "mujer"
+    if s == "m":
+        return "un hombre" if con_articulo else "hombre"
+    return ""
+
+
+def _en_genero(enano):
+    """La instruccion explicita. Decir 'eres mujer' no basta: hay que pedir la
+    concordancia, porque el modelo arrastra el genero del oficio en ingles."""
+    s = (enano or {}).get("sexo")
+    if s == "f":
+        return "Eres MUJER: habla de ti en femenino."
+    if s == "m":
+        return "Eres HOMBRE: habla de ti en masculino."
+    return ""
+
+
+def _con_sexo(r):
+    """'Tosid Nishkesh (spouse, hombre)'. El genero de una relacion depende del
+    OTRO, no de quien habla, y 'spouse' no lo dice."""
+    etiqueta = _txt(r, r.get("tipo", ""))
+    sx = _sexo(r)
+    return "%s (%s)" % (r.get("quien"), ", ".join(x for x in (etiqueta, sx) if x))
+
+
 def construir_prompt(enano, instruccion=None, recuerdos=None, tope_rasgos=None):
     """Convierte un enano en un prompt acotado y legible."""
     partes = ["Eres %s, %s, de %s anos, en una fortaleza enana."
               % (enano.get("nombre", "un enano"),
                  enano.get("profesion", "sin oficio"),
                  enano.get("edad", "?"))]
+    genero = _en_genero(enano)
+    if genero:
+        partes.append(genero)
 
     if not enano.get("adulto", True):
         partes.append("Eres un nino: en Dwarf Fortress los ninos no tienen oficio "
@@ -498,10 +538,13 @@ def construir_prompt(enano, instruccion=None, recuerdos=None, tope_rasgos=None):
     if isinstance(estres, int):
         # Se da la LECTURA, nunca el numero: cuando el prompt incluia el valor
         # crudo, el modelo lo recitaba ("aunque mi estres sigue en 11440").
-        como = "muy tranquilo, en paz" if estres < -10000 else \
-               "tranquilo" if estres < 0 else \
-               "muy agobiado, al limite" if estres > 10000 else "algo tenso"
-        partes.append("Por dentro te sientes %s." % como)
+        # En sustantivos, no en adjetivos: "te sientes muy tranquilo" es MI
+        # castellano, y estaba en masculino para todo el mundo. El genero del
+        # enano se dice arriba; esta linea no tiene por que volver a marcarlo.
+        como = "una gran calma, en paz" if estres < -10000 else \
+               "calma" if estres < 0 else \
+               "mucho agobio, al limite" if estres > 10000 else "algo de tension"
+        partes.append("Por dentro sientes %s." % como)
 
     rasgos = _rasgos_marcados(enano.get("rasgos", []), tope_rasgos or TOPE_RASGOS)
     if rasgos:
@@ -524,8 +567,7 @@ def construir_prompt(enano, instruccion=None, recuerdos=None, tope_rasgos=None):
     rel = enano.get("relaciones") or []
     if rel:
         partes.append("Personas de tu vida: "
-                      + ", ".join("%s (%s)" % (r.get("quien"), _txt(r, r.get("tipo", "")))
-                                  for r in rel) + ".")
+                      + ", ".join(_con_sexo(r) for r in rel) + ".")
 
     hab = _mejores_habilidades(enano.get("habilidades", []))
     if hab:
@@ -555,6 +597,9 @@ def construir_prompt(enano, instruccion=None, recuerdos=None, tope_rasgos=None):
                   "sientes o piensas.")
     partes.append("Habla como hablaria una persona: NADA de cifras, porcentajes, "
                   "categorias ni nombres de sistema, aunque aparezcan arriba.")
+    if genero or any(r.get("sexo") for r in rel):
+        partes.append("Respeta el genero de cada persona tal como se indica arriba: "
+                      "los oficios estan en ingles y no lo marcan.")
     return "\n".join(partes)
 
 
@@ -567,14 +612,14 @@ def construir_epitafio(enano, detalle):
     quien = enano.get("nombre", "un enano")
     partes = ["Eres el cronista de una fortaleza enana. Anota lo que le ha ocurrido a "
               "uno de sus habitantes."]
-    partes.append("Se llamaba %s, %s, de %s anos."
-                  % (quien, enano.get("profesion", "sin oficio"), enano.get("edad", "?")))
+    sx = _sexo(enano, con_articulo=True)
+    partes.append("Se llamaba %s, %s%s, de %s anos."
+                  % (quien, (sx + ", ") if sx else "",
+                     enano.get("profesion", "sin oficio"), enano.get("edad", "?")))
 
     rel = enano.get("relaciones") or []
     if rel:
-        partes.append("Dejaba atras a: "
-                      + ", ".join("%s (%s)" % (r.get("quien"), _txt(r, r.get("tipo", "")))
-                                  for r in rel) + ".")
+        partes.append("Dejaba atras a: " + ", ".join(_con_sexo(r) for r in rel) + ".")
     hab = _mejores_habilidades(enano.get("habilidades", []), 3)
     if hab:
         partes.append("Se le daba bien: "
@@ -585,6 +630,16 @@ def construir_epitafio(enano, detalle):
     partes.append("Escribelo en TERCERA persona, en espanol, en UNA o DOS frases secas, "
                   "como una anotacion de cronica. NUNCA en primera persona: el o ella no "
                   "puede contarlo. Sin comillas, sin cifras y sin jerga.")
+    # Con la version anterior el cronista escribio "murio mientras trabajaba en
+    # las minas". El prompt solo decia "ha muerto": el sitio y la circunstancia
+    # se los invento, y los dio por ciertos en la primera frase antes de anadir
+    # que no se conocian mas detalles. Es la regla 1 de la doctrina de CLAUDE.md.
+    partes.append("Cuenta SOLO lo que se dice aqui arriba. No inventes donde ni como "
+                  "ocurrio, ni anadas circunstancias: si no esta escrito, no se sabe, "
+                  "y una cronica no rellena huecos.")
+    if sx or any(r.get("sexo") for r in rel):
+        partes.append("Respeta el genero de cada persona tal como se indica arriba: "
+                      "los oficios estan en ingles y no lo marcan.")
     return "\n".join(partes)
 
 

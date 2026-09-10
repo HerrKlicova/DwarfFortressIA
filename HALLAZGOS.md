@@ -1399,6 +1399,91 @@ Esta crónica cruza varias versiones, así que sirve de museo de lo que ya está
 
 Los seis salen de la misma raíz y ninguno fue culpa del modelo.
 
+## Los dos arreglos, confirmados — y el género, que no habíamos mirado
+
+### Lo que se cierra
+
+Las emociones ya son reales, y el `id=` resuelve a un enano casado:
+
+```
+Lo que has sentido ultimamente: interest after watching a performance; fondness talking
+with a relation; ...; anything saw somebody's dead body.
+Personas de tu vida: Tosid Nishkesh (spouse).
+...
+Dejaba atras a: Tosid Nishkesh (spouse).
+```
+
+**`Dejaba atrás a:` sale.** El epitafio vacío queda cerrado, medido contra el juego.
+
+Y hay un detalle que vale la pena mirar: entre las emociones de Tirist está
+`saw somebody's dead body`. **Es la muerte de su marido, registrada en sus datos.** El
+material para que la viuda hable estaba ahí todo el tiempo; lo que faltaba era llevarlo al
+prompt.
+
+### El género: dos errores en dos frases
+
+Tirist Atírshis es **mujer**. Con el prompt de esa misma tirada, el modelo escribió:
+
+> *"Aunque no dejo de pensar en Tosid y en lo mucho que me gustaría volver a **verla**"*
+
+Tosid es su **marido** —él mismo se llamó *"un marido que se queda mirando el vacío"* en
+la medición de rasgos—. Y el epitafio:
+
+> *"Tirist Atírshis, minero de treinta y cuatro años, **esposo** de Tosid Nishkesh"*
+
+**Ninguno de los dos géneros estaba en el prompt.** No se los inventó por capricho: no
+tenía el dato. `spouse` no dice esposo ni esposa, `Miner` está en inglés y no marca nada,
+y el sexo del enano no se extraía.
+
+El proyecto del traductor lo tenía señalado como su ventaja principal —*"el español
+necesita saber el sexo del enano"*—. A nosotros nos afecta más, porque generamos prosa
+entera en vez de traducir frases.
+
+Corregido en tres sitios:
+
+1. `sexo_de()` en el lado Lua, con dos caminos (`isFemale`/`isMale` y `unit.sex`) y
+   `sexo_via` en el JSON para saber cuál funcionó. **Si no se resuelve, el campo se
+   omite** — ningún valor de relleno.
+2. El sexo de **cada relación** también: `Tosid Nishkesh (spouse, hombre)`. El género de
+   «esposo» depende del otro, no de quien habla.
+3. Instrucción explícita (*"Eres MUJER: habla de ti en femenino"*). Dar el dato sin pedir
+   la concordancia no basta: el modelo arrastra el género del oficio en inglés.
+
+Y un cuarto que es culpa nuestra y no del modelo: **`"Por dentro te sientes muy
+tranquilo"` estaba en masculino para toda la fortaleza.** Era una frase escrita por mí, no
+un dato de DF. Reescrita en sustantivos: *"por dentro sientes una gran calma"*.
+
+> Cada frase que escribimos nosotros en el prompt es tan revisable como las que escribe el
+> modelo. Cuatro de los cinco defectos de texto venían del prompt; este es el quinto.
+
+### El cronista se inventó cómo murió
+
+> *"Tirist Atírshis, minero de treinta y cuatro años, esposo de Tosid Nishkesh, **murió
+> mientras trabajaba en las minas**. [...] dejó atrás a su cónyuge **sin que se conozcan
+> más detalles de su fallecimiento**."*
+
+El prompt decía `Lo que ha ocurrido: ha muerto.` y nada más. El sitio y la circunstancia
+son **invención**, en el sentido exacto de la doctrina: una afirmación sobre el mundo que
+no sale del estado de DF.
+
+Lo revelador es la segunda mitad. El modelo **sabe** que no tiene los detalles —lo dice—,
+y aun así ya había dado el lugar por cierto en la primera frase. No es que mienta: es que
+un hueco de información en un prompt narrativo se rellena solo.
+
+Corregido con una prohibición explícita: *"no inventes dónde ni cómo ocurrió; si no está
+escrito, no se sabe, y una crónica no rellena huecos"*. Queda pendiente comprobar que
+funciona, y **anotar la tasa** como manda la regla 5.
+
+La solución de fondo no es el freno, sino el dato: `world.status.reports` tiene la causa
+real de cada muerte. Cuando esa fuente entre, el hueco desaparece.
+
+### Emociones repetidas
+
+`interest after watching a performance` salía **tres veces** de los seis huecos. DF guarda
+una entrada por cada vez que ocurre algo. Ahora se deduplica por (tipo, causa) quedándose
+con la más reciente, y las entradas con un campo a `-1` mandan cadena vacía en vez de
+`anything` o `none`.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a

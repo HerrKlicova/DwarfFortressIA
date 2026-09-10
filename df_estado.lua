@@ -151,6 +151,27 @@ local function nombre_de(u)
     return n
 end
 
+-- El sexo del enano. El espanol lo necesita en casi cada frase: 'minera',
+-- 'esposa', 'verla'. Sin este dato el modelo lo adivina, y acierta la mitad de
+-- las veces -- lo vimos con Tirist, mujer, narrada como 'esposo de Tosid' y
+-- refiriendose a su marido como 'verla'.
+--
+-- Dos caminos porque no esta comprobado cual existe en esta build, y se apunta
+-- cual funciono en 'sexo_via'. Si no se resuelve devuelve nil y el campo se
+-- OMITE: ningun valor de relleno llega al prompt.
+local function sexo_de(u)
+    if try(function() return dfhack.units.isFemale(u) end, nil) == true then
+        return 'f', 'isFemale'
+    end
+    if try(function() return dfhack.units.isMale(u) end, nil) == true then
+        return 'm', 'isMale'
+    end
+    local s = tonumber(try(function() return u.sex end, nil))
+    if s == 0 then return 'f', 'unit.sex' end
+    if s == 1 then return 'm', 'unit.sex' end
+    return nil, 'sin resolver'
+end
+
 -- Recorre un vector de DF de forma segura. 0-INDEXADO: 0..n-1.
 local function cada(vec, fn, maximo)
     if not vec then return end
@@ -230,6 +251,9 @@ local function enano_tabla(u, detalle, max_pens)
         nac_a     = math.floor(try(function() return u.birth_year end, -1)),
         nac_t     = math.floor(try(function() return u.birth_time end, -1)),
     }
+    local sx, via = sexo_de(u)
+    if sx then e.sexo = sx end          -- si no se resuelve, no hay campo
+    e.sexo_via = via
     if detalle ~= 'completo' then return e end
 
     local alma = try(function() return u.status.current_soul end, nil)
@@ -278,17 +302,31 @@ local function enano_tabla(u, detalle, max_pens)
             if x.a ~= y.a then return x.a > y.a end
             return x.t > y.t
         end)
-        for i = 1, math.min(#emos, max_pens) do
+        -- Sin repetidos. DF guarda una entrada por cada vez que pasa algo, asi
+        -- que 'interest after watching a performance' salia TRES veces de las
+        -- seis que caben. Como ya estan ordenadas por recencia, la primera que
+        -- se ve de cada par (tipo, causa) es la mas nueva.
+        local vistas = {}
+        for i = 1, #emos do
+            if #e.pensamientos >= max_pens then break end
             local m = emos[i]
-            e.pensamientos[#e.pensamientos + 1] = {
-                emocion     = enum('emotion_type', m.tipo),
-                emocion_txt = enum_txt('emotion_type', m.tipo),
-                causa       = enum('unit_thought_type', m.causa),
-                causa_txt   = enum_txt('unit_thought_type', m.causa),
-                fuerza      = m.f,
-                a           = m.a,
-                t           = m.t,
-            }
+            local clave = m.tipo .. ':' .. m.causa
+            if not vistas[clave] then
+                vistas[clave] = true
+                -- Un campo a -1 no tiene nada que decir: sus captions son
+                -- 'anything' y 'none'. Se manda vacio y el lado Python lo
+                -- recorta, en vez de escribir "anything saw somebody's dead
+                -- body" en el prompt.
+                e.pensamientos[#e.pensamientos + 1] = {
+                    emocion     = (m.tipo >= 0) and enum('emotion_type', m.tipo) or '',
+                    emocion_txt = (m.tipo >= 0) and enum_txt('emotion_type', m.tipo) or '',
+                    causa       = (m.causa >= 0) and enum('unit_thought_type', m.causa) or '',
+                    causa_txt   = (m.causa >= 0) and enum_txt('unit_thought_type', m.causa) or '',
+                    fuerza      = m.f,
+                    a           = m.a,
+                    t           = m.t,
+                }
+            end
         end
         -- Cuantas habia en total y cuantas estaban vacias: si esto vuelve a
         -- pasar, se ve en el JSON en vez de en el prompt.
@@ -333,6 +371,9 @@ local function enano_tabla(u, detalle, max_pens)
                     tipo = enum('unit_relationship_type', i),
                     txt = enum_txt('unit_relationship_type', i),
                     quien = nombre,
+                    -- El sexo del otro: 'esposo' o 'esposa' depende de el, no
+                    -- de quien habla, y 'spouse' no lo dice.
+                    sexo = (select(1, sexo_de(otro))),
                     -- El unit_id del OTRO. Antes se tiraba y solo quedaba el
                     -- nombre; los nombres se repiten en DF, asi que sin esto no
                     -- se puede comprobar si el otro sigue vivo, ni pedir su
