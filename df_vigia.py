@@ -261,12 +261,25 @@ class Vigia(object):
         self.p2 = self.p2 or df_llm.Player2()
         t0 = time.perf_counter()
         try:
-            texto = self.p2.completar([{"role": "user", "content": prompt}],
+            bruto = self.p2.completar([{"role": "user", "content": prompt}],
                                       max_tokens=MAX_TOKENS)
         except df_llm.SinPlayer2 as e:
             print("  [Player2] %s" % e)
             return
         dt = time.perf_counter() - t0
+
+        # Red de seguridad de SALIDA. Si el modelo se sale del personaje, eso
+        # NO se anuncia en el juego ni entra en la cronica. Paso de verdad:
+        # "no puedo continuar con este roleplay" detras de una respuesta buena.
+        texto = df_llm.limpiar_meta(bruto, "vigia.%s" % evento["tipo"])
+        for origen, trozo in df_llm.DESCARTES_META:
+            print("  [fuera de personaje] %s: %r" % (origen, trozo[:100]))
+        del df_llm.DESCARTES_META[:]
+        if texto is None:
+            print("  [%s] %s: respuesta descartada entera, no se anuncia"
+                  % (evento["tipo"], enano.get("nombre")))
+            self.ultima_llamada = ahora()      # el gasto ya se hizo
+            return
 
         self.ultima_llamada = ahora()
         self.ultimo_de[clave] = ahora()

@@ -1842,6 +1842,74 @@ no una pieza suelta.
 > documento, y este en el banco de pruebas. Un banco que apaga una pieza sin decirlo mide
 > otra cosa distinta de la que crees.
 
+## Tercera tirada: la memoria empeoró la repetición y rompió el personaje
+
+Resultado **negativo**, y de los útiles.
+
+### El modelo se salió del personaje
+
+Respuesta 6 de 10, después de dos frases correctas:
+
+> *"(Lo siento, pero no puedo continuar con este roleplay porque repetí frases que ya
+> habías dicho antes, lo cual va en contra de tus instrucciones.)"*
+
+En seco no pasó nada. **Con el vigía en marcha, eso se anuncia en el juego como si lo
+hubiera dicho el enano**, y acaba en la crónica.
+
+Es la primera vez que vemos este fallo, y enseña algo que no teníamos: **hacía falta un
+filtro de salida**. Todo lo construido hasta ahora vigila lo que *entra* al prompt
+—`legible()`, los huecos de plantilla, el género, la costura—. Nada miraba lo que *sale*.
+Y ningún prompt es infalible.
+
+`limpiar_meta()` trabaja **por frases**, no sobre el texto entero: esa respuesta tenía dos
+frases buenas y una coletilla mala. Tirarlo todo habría perdido texto válido; dejarlo
+entero habría anunciado la coletilla. Probado con el caso real, con una respuesta que es
+solo meta, y con un enano que se disculpa legítimamente —*"Lo siento por lo que dije ayer
+en la forja"*—, que **no** se filtra.
+
+### Y la memoria, tal como estaba escrita, empeoraba lo que venía a arreglar
+
+`para_prompt()` pegaba las tres respuestas anteriores **enteras** y decía *"NO las
+repitas"*. Lo que salió:
+
+- Las respuestas 2, 3, 4 y 6 comparten casi palabra por palabra *"Echo de menos a Tosid
+  con una tristeza que se me agarra al pecho, ojalá estuviera aquí para compartir esta paz
+  que llevo dentro"*. La 6 es **copia literal de la 3**.
+- Las 7, 8, 9 y 10 convergen en otro bloque igual de parecido entre sí.
+
+O sea que **ver su propio texto lo ceba**: las respuestas se parecieron **más**, no menos.
+
+Y esto ya estaba escrito en `CLAUDE.md`, con la muletilla del «mientras»: *"no se arregla
+diciendo «no uses esa palabra»: nombrarla la vuelve a meter en el contexto"*. Lo
+aprendimos con **una palabra** y lo repetimos con **párrafos enteros**, en otro fichero.
+
+Encima, la prohibición es **imposible de cumplir**: solo hay tantas formas de decir «echo
+de menos a mi pareja». Puesto entre repetirse y desobedecer, el modelo hizo lo tercero:
+salirse a explicar el problema.
+
+### Lo que se cambia
+
+`para_prompt()` manda el **tema**, no la prosa —el campo `detalle`, que lo escribimos
+nosotros— y pide **avanzar** en vez de prohibir:
+
+> *Ya has hablado en voz alta de esto: sadness at being separated from a loved one;
+> pleasure near a tastefully arranged table. Hoy fíjate en otra cosa de las de arriba.*
+
+### El recuento de las tres tiradas
+
+| | escenas fabricadas | apertura más repetida | fuera de personaje |
+|---|---|---|---|
+| sin freno | 1 de 1 | — | — |
+| freno | 0 de 10 | 7 de 10 | 0 |
+| + barajado | 0 de 10 | 3 de 10 | 0 |
+| + memoria (prosa) | 0 de 10 | 4 de 10 | **1 de 10** |
+
+Las escenas fabricadas se mantienen en cero en las tres. Lo demás se mueve poco y con
+muestras de diez; **no se declara ninguna tendencia** más allá de eso.
+
+> Cuarto defecto de esta ronda fuera del modelo: el prompt, mi documento, el banco de
+> pruebas, y ahora una pieza que hacía lo contrario de lo que decía su nombre.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a

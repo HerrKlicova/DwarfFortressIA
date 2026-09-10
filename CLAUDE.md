@@ -328,6 +328,25 @@ el fallo está ahí.
   el vigía se los pasa y la orden `hablar` no lo hacía. Se estaba culpando al prompt de un
   problema que el proyecto ya resolvía en otra pieza. Antes de sacar conclusiones de una
   medición, comprobar que mide el sistema **entero**.
+- **Hace falta un filtro de SALIDA, no solo instrucciones de entrada.** Con la memoria
+  encendida, el modelo escribió dos frases buenas y detrás: *"(Lo siento, pero no puedo
+  continuar con este roleplay porque repetí frases que ya habías dicho antes, lo cual va
+  en contra de tus instrucciones.)"*. En seco no pasó nada; **con el vigía en marcha eso
+  se anuncia en el juego como si lo hubiera dicho el enano**.
+  Ningún prompt es infalible. `df_llm.limpiar_meta()` es la red de después, simétrica de
+  `legible()`: trabaja **por frases**, así que salva las buenas y tira la coletilla, y
+  apunta lo recortado en `DESCARTES_META` en vez de tragárselo. Si no queda una frase
+  entera, no se anuncia nada.
+- **Nunca poner en el prompt el texto anterior del propio modelo.** `para_prompt()` pegaba
+  las tres respuestas previas enteras y decía *"NO las repitas"*. Medido: **no reduce la
+  repetición, la aumenta** —en una tirada de diez las respuestas se parecieron más entre
+  sí— y además la prohibición es imposible de cumplir cuando solo hay una forma de decir
+  algo, así que el modelo se sale del personaje para disculparse.
+  Es exactamente la lección de la muletilla del «mientras», que ya está escrita en este
+  fichero, repetida con párrafos enteros en vez de con una palabra. Se manda el **tema**
+  (el campo `detalle`, escrito por nosotros) y se pide **avanzar**, no se prohíbe.
+  > Escribir la regla no basta para cumplirla. Esta la teníamos escrita y la violamos en
+  > otro fichero.
 - **La memoria se guarda por partida.** Los `unit_id` vuelven a empezar en cada mundo,
   así que sin separar por `dfhack.world.ReadWorldFolder()` el enano 272 de una fortaleza
   heredaría los recuerdos del 272 de otra.

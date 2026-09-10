@@ -156,18 +156,35 @@ class Memoria(object):
 
     # -- para el prompt ---------------------------------------------
     def para_prompt(self, clave, huella, n=3):
-        """Resumen breve de lo ya dicho, para que no se repita ni se
-        contradiga. Vacio si no hay pasado."""
+        """De que ha hablado ya, en TEMAS y no en sus palabras.
+
+        La primera version pegaba en el prompt las tres respuestas anteriores
+        enteras y decia "NO las repitas". Medido: no funciona y hace dano.
+
+          - No reduce la repeticion. Ver su propio texto lo ceba: en una tirada
+            de diez, las respuestas se parecian MAS entre si, no menos.
+          - Y CLAUDE.md ya lo tenia escrito: "nombrar la palabra la vuelve a
+            meter en el contexto". Lo aprendimos con la muletilla del
+            "mientras" y aqui lo repetimos con parrafos enteros.
+          - Peor: la prohibicion es imposible de cumplir cuando solo hay una
+            manera de decir algo, y el modelo se salio del personaje para
+            disculparse -- "no puedo continuar con este roleplay".
+
+        Ahora se manda el TEMA (el campo 'detalle', que lo escribimos nosotros)
+        y no su prosa, y se pide avanzar en vez de prohibir."""
         entradas = self.historial(clave, huella, n)
         if not entradas:
             return ""
-        lineas = []
+        temas = []
         for e in entradas:
-            c = e.get("cuando") or {}
-            fecha = ("ano %s" % c["anio"]) if c.get("anio", -1) >= 0 else "antes"
-            lineas.append("- (%s) %s" % (fecha, (e.get("texto") or "").replace("\n", " ")))
-        return ("Cosas que ya has dicho en voz alta. NO las repitas ni te "
-                "contradigas con ellas:\n" + "\n".join(lineas))
+            t = (e.get("detalle") or e.get("evento") or "").strip()
+            if t and t not in temas:
+                temas.append(t)
+        if not temas:
+            return ""
+        return ("Ya has hablado en voz alta de esto: " + "; ".join(temas)
+                + ". Hoy fijate en otra cosa de las de arriba, y no vuelvas "
+                  "sobre lo mismo con las mismas palabras.")
 
     # -- informacion ------------------------------------------------
     def resumen(self):

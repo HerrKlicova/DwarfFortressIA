@@ -526,6 +526,61 @@ def _con_sexo(r):
     return "%s (%s)" % (r.get("quien"), ", ".join(x for x in (etiqueta, sx) if x))
 
 
+# ---------------------------------------------------------------- salida
+# Filtro de SALIDA. Simetrico a legible(), que filtra lo que ENTRA.
+#
+# Se puso porque paso de verdad: con la memoria encendida, el modelo escribio
+# una respuesta buena y detras, entre parentesis:
+#
+#   "(Lo siento, pero no puedo continuar con este roleplay porque repeti
+#    frases que ya habias dicho antes, lo cual va en contra de tus
+#    instrucciones.)"
+#
+# En seco no paso nada. Con el vigia en marcha eso se anuncia en el juego como
+# si lo hubiera dicho el enano. Ningun prompt es infalible, asi que hace falta
+# una red DESPUES, no solo instrucciones antes.
+META = [
+    r"no puedo continuar", r"no puedo seguir", r"no puedo generar",
+    r"no puedo ayudar", r"no puedo cumplir",
+    r"\broleplay\b", r"\brol\b\s+que", r"tus instrucciones",
+    r"las instrucciones", r"va en contra de",
+    r"como (?:una? )?(?:ia|inteligencia artificial|modelo de lenguaje|asistente)",
+    r"lo siento,? pero",
+]
+_META_RE = [re.compile(p, re.I) for p in META]
+DESCARTES_META = []
+
+
+def limpiar_meta(texto, origen="?"):
+    """Quita los trozos en los que el modelo se sale del personaje.
+
+    Trabaja por parrafos y frases, no sobre el texto entero: la respuesta que
+    lo destapo tenia dos frases buenas y una coletilla mala. Tirarlo todo
+    habria perdido texto valido; dejarlo entero habria anunciado la coletilla.
+
+    Devuelve None si no queda nada aprovechable. Lo descartado se apunta en
+    DESCARTES_META para que se vea, en vez de desaparecer en silencio."""
+    if not texto:
+        return None
+    trozos = re.split(r"(?<=[.!?\n])\s+", texto.strip())
+    buenos, malos = [], []
+    for t in trozos:
+        if any(rx.search(t) for rx in _META_RE):
+            malos.append(t)
+        else:
+            buenos.append(t)
+    for t in malos:
+        DESCARTES_META.append((origen, t))
+    limpio = " ".join(buenos).strip()
+    limpio = re.sub(r"\(\s*\)", "", limpio).strip()      # parentesis vacio que quede
+    limpio = re.sub(r"\s{2,}", " ", limpio)
+    if len(limpio) < 20:            # no queda una frase: mejor callarse
+        if limpio:
+            DESCARTES_META.append((origen, limpio))
+        return None
+    return limpio
+
+
 def construir_prompt(enano, instruccion=None, recuerdos=None, tope_rasgos=None):
     """Convierte un enano en un prompt acotado y legible."""
     partes = ["Eres %s, %s, de %s anos, en una fortaleza enana."
@@ -791,9 +846,20 @@ def orden_hablar(df, args):
                 for linea in prompt.splitlines():
                     print("    | " + linea)
             t0 = time.perf_counter()
-            texto = p2.completar([{"role": "user", "content": prompt}])
+            bruto = p2.completar([{"role": "user", "content": prompt}])
+            texto = limpiar_meta(bruto, "hablar")
             marca = ("  [%d/%d]" % (vuelta + 1, veces)) if veces > 1 else ""
+            if texto is None:
+                print("    (%.2f s)%s [DESCARTADA: el modelo se salio del personaje]"
+                      % (time.perf_counter() - t0, marca))
+                for o, t in DESCARTES_META:
+                    print("        %r" % t[:110])
+                del DESCARTES_META[:]
+                continue
             print("    (%.2f s)%s %s" % (time.perf_counter() - t0, marca, texto))
+            for o, t in DESCARTES_META:
+                print("        [recortado] %r" % t[:110])
+            del DESCARTES_META[:]
             if mem is not None and not epitafio:
                 mem.recordar(enano.get("id"), huella, "prueba", "medicion", texto,
                              participantes=[enano.get("id")])
