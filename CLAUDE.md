@@ -381,6 +381,12 @@ el fallo está ahí.
   `unidad 338`.
   > Es el reverso de la regla 2: no basta con no meter rellenos; **lo que se mete tiene
   > que decir algo**, o el modelo llena el hueco hablando de su propia niebla.
+  Y poner el **nombre** no bastó. Con el detalle `has perdido a Stukos Ralfash de tu
+  vida`, el enano dijo *"He perdido a **mi madre**"* — se inventó el parentesco. Lo
+  revelador es el intercambio: **tiró el dato anclado (el nombre) y rellenó el hueco (el
+  vínculo)**. Ante un dato cierto y un hueco al lado, el hueco tira más.
+  El tipo de vínculo se sabe **sin preguntar a nadie**: es el **índice** del hueco en
+  `relationship_ids`. Se manda, y no queda nada que inventar.
 - **La memoria se guarda por partida.** Los `unit_id` vuelven a empezar en cada mundo,
   así que sin separar por `dfhack.world.ReadWorldFolder()` el enano 272 de una fortaleza
   heredaría los recuerdos del 272 de otra.

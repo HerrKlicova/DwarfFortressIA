@@ -2205,6 +2205,39 @@ Con 128 ciudadanos, el vigía narra **una vez cada 20 segundos, sin parar** — 
 el `DESCANSO_GLOBAL`. En tres horas serían unas 540 narraciones. No es un fallo, pero es el
 número que dice que el reparto por canales (tarea 7) hace falta antes que después.
 
+## La crónica responde: el parentesco era inventado
+
+```
+[ano 106, mes 9, dia 15] Bëmbul Konosuvar -- has perdido a Stukos Ralfash de tu vida
+  "He perdido a MI MADRE y eso me ha dejado un vacío extraño..."
+```
+
+El detalle llevaba **el nombre y nada más**. `madre` no estaba en ninguna parte.
+
+Y lo interesante no es que lo inventara, sino **el intercambio que hizo**: teníamos un dato
+anclado —*Stukos Ralfash*— y un hueco al lado —qué era esa persona para él—. El modelo
+**tiró el dato y rellenó el hueco**. No dijo el nombre ni una vez.
+
+> Ante un dato cierto y un hueco al lado, el hueco tira más. Poner el nombre no bastaba:
+> había que cerrar el hueco.
+
+Y se cierra sin preguntarle a nadie, porque **el tipo de vínculo es el índice del hueco**
+en `relationship_ids`. Estaba delante desde el principio. Ahora el detalle dice
+`has perdido a Stukos Ralfash, tu mother` y no queda nada que rellenar.
+
+### Lo demás de esta crónica está limpio
+
+`talking with a person of the **spouse** sort` → *"pienso en ella… a pesar de la
+distancia"*. `after learning about **skill at armor**` → *"lo mucho que he mejorado con las
+armaduras"*. `embarrassment having to conduct an official meeting **in a bedroom**` —el
+`[quality]` caído sin dejar frase coja—. Y `euphoria`, `empathy` a secas, que son las
+captions colgantes descartadas.
+
+Puesto al lado de las entradas de hace dos días, en el mismo fichero, se ve el arco
+entero: `EUPHORIA Syndrome`, `su animo ha mejorado (categoria 2 a 3)`, `mi estrés sigue en
+11440`, `pleasure near his own quality building`, un muerto narrando en primera persona.
+Ninguno de esos vuelve a aparecer después del año 106.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a
