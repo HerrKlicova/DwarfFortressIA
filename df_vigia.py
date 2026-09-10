@@ -47,7 +47,12 @@ MAX_TOKENS = 160          # la latencia va con lo que escribe, no con lo que lee
 VENTANA_REPETIDOS = 5     # no repetir el mismo suceso aunque le pase a otro enano
 
 PESOS = {"muerte": 100, "locura": 90, "desaparicion": 60,
-         "relacion": 50, "estres": 40, "emocion": 20, "llegada": 15}
+         "relacion": 50,
+         # Una emocion FUERTE dice por que se siente asi; el cambio de
+         # categoria de estres solo dice que ha cambiado. Por eso pesa mas.
+         # Y va por debajo de 'relacion' (50), que es un vinculo perdido o
+         # ganado, no un estado de animo.
+         "emocion_fuerte": 45, "estres": 40, "emocion": 20, "llegada": 15}
 
 # Sucesos que el propio enano NO puede narrar en primera persona. La primera
 # ejecucion con una muerte real le pidio al muerto que hablara en presente:
@@ -104,9 +109,17 @@ class Vigia(object):
             # contador. DF tambien poda emociones viejas, asi que el numero de
             # emociones sube y baja y no sirve como senal.
             if self._mas_nueva(act, viejo) and act.get("emo_fuerza", 0) >= FUERZA_MINIMA:
-                eventos.append(self._evento(
-                    "emocion", act,
-                    "%s %s" % (act.get("emo_tipo", ""), act.get("emo_causa", ""))))
+                eventos.append(self._evento("emocion", act, self._texto_emocion(act)))
+
+            # Y la mas FUERTE, aparte. Si en la misma vuelta de cinco segundos
+            # a un enano le llega el duelo por su pareja y detras una funcion de
+            # teatro, con solo mirar la mas reciente se cuenta el teatro. Esto
+            # es lo que dejaba muda a la viuda.
+            if self._mas_fuerte_nueva(act, viejo) \
+                    and abs(act.get("fue_fuerza", 0)) >= FUERZA_MINIMA \
+                    and act.get("fue_causa") != act.get("emo_causa"):
+                eventos.append(self._evento("emocion_fuerte", act,
+                                            self._texto_emocion(act, "fue")))
 
             # Estres: se usa la categoria de DF (0 mas estresado, 6 menos), no
             # umbrales inventados.
@@ -153,6 +166,23 @@ class Vigia(object):
     def _mas_nueva(act, viejo):
         return (act.get("emo_a", -1), act.get("emo_t", -1)) > \
                (viejo.get("emo_a", -1), viejo.get("emo_t", -1))
+
+    @staticmethod
+    def _mas_fuerte_nueva(act, viejo):
+        """La emocion mas fuerte del enano ha cambiado de marca de tiempo: es
+        otra, no la misma de siempre."""
+        return (act.get("fue_a", -1), act.get("fue_t", -1)) > \
+               (viejo.get("fue_a", -1), viejo.get("fue_t", -1))
+
+    @staticmethod
+    def _texto_emocion(enano, prefijo="emo"):
+        """'sadness at being separated from a loved one'.
+
+        Con .strip(): cuando DF no da el tipo de emocion, el lado Lua manda
+        cadena vacia, y sin esto el detalle empezaba por un espacio y acababa
+        en la cronica y en la memoria con el."""
+        return ("%s %s" % (enano.get(prefijo + "_tipo", ""),
+                           enano.get(prefijo + "_causa", ""))).strip()
 
     @staticmethod
     def _evento(tipo, enano, detalle):

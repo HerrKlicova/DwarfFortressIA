@@ -298,28 +298,57 @@ local function enano_sonda(u)
         estres_cat = math.floor(try(function() return dfhack.units.getStressCategory(u) end, -1)),
     }
 
-    -- Emociones: cada una lleva marca de tiempo del juego (year, year_tick, de
+    -- Emociones. Cada una lleva marca de tiempo del juego (year, year_tick, de
     -- df.personality.xml). Con ella la deteccion de "emocion nueva" es exacta;
     -- comparar contadores fallaria porque DF tambien PODA emociones viejas.
+    --
+    -- SE DEVUELVEN DOS, no una:
+    --   emo_*  la mas RECIENTE, que es lo que dispara el suceso
+    --   fue_*  la mas FUERTE, para que un duelo no se pierda porque en la misma
+    --          vuelta de cinco segundos llego una funcion de teatro detras
+    --
+    -- El expediente completo ya elige mitad por recencia y mitad por fuerza; la
+    -- sonda se habia quedado atras y el vigia detecta CON ESTOS CAMPOS. De poco
+    -- sirve que el prompt sepa contar el duelo si quien decide no lo ve.
     local emo = try(function() return u.status.current_soul.personality.emotions end, nil)
     e.emo_n, e.emo_a, e.emo_t = 0, -1, -1
+    e.fue_a, e.fue_t, e.fue_fuerza = -1, -1, 0
     if emo then
         local n = try(function() return #emo end, 0)
         e.emo_n = n
+        local mejor_f = -1
         for i = 0, n - 1 do                       -- vector de DF: 0-indexado
             local m = try(function() return emo[i] end, nil)
             if m then
-                local a = math.floor(try(function() return m.year end, -1))
-                local t = math.floor(try(function() return m.year_tick end, -1))
-                if a > e.emo_a or (a == e.emo_a and t > e.emo_t) then
-                    e.emo_a, e.emo_t = a, t
-                    -- enum_txt, no enum: esto acaba en el prompt como disparador.
-                    -- Con el identificador crudo el modelo lo repite literalmente
-                    -- ("¡Euphoria! ¡Que alegria...!"). unit_thought_type tiene
-                    -- captions de verdad, asi que aqui se gana bastante.
-                    e.emo_tipo   = enum_txt('emotion_type', try(function() return m.type end, -1))
-                    e.emo_causa  = enum_txt('unit_thought_type', try(function() return m.thought end, -1))
-                    e.emo_fuerza = math.floor(try(function() return m.strength end, 0))
+                local tp = math.floor(try(function() return m.type end, -1))
+                local th = math.floor(try(function() return m.thought end, -1))
+                -- Una entrada con los dos campos a -1 esta vacia. Si encima es
+                -- la mas reciente, ganaba la carrera y el suceso salia como
+                -- "anything none". Mismo fallo que tenia el expediente.
+                if tp >= 0 or th >= 0 then
+                    -- causa_legible rellena los huecos de la plantilla y
+                    -- devuelve nil si la frase queda coja. Sin esto, el detalle
+                    -- del suceso -- que acaba en el prompt, en la cronica Y en
+                    -- la memoria -- podia ser "after varying" o "due to
+                    -- syndrome", que no significan nada.
+                    local causa = (th >= 0) and causa_legible(th, math.floor(
+                        try(function() return m.subthought end, -1))) or ''
+                    if th < 0 or causa then
+                        local a = math.floor(try(function() return m.year end, -1))
+                        local t = math.floor(try(function() return m.year_tick end, -1))
+                        local f = math.floor(try(function() return m.strength end, 0))
+                        local tipo = (tp >= 0) and enum_txt('emotion_type', tp) or ''
+
+                        if a > e.emo_a or (a == e.emo_a and t > e.emo_t) then
+                            e.emo_a, e.emo_t = a, t
+                            e.emo_tipo, e.emo_causa, e.emo_fuerza = tipo, causa or '', f
+                        end
+                        if math.abs(f) > mejor_f then
+                            mejor_f = math.abs(f)
+                            e.fue_a, e.fue_t, e.fue_fuerza = a, t, f
+                            e.fue_tipo, e.fue_causa = tipo, causa or ''
+                        end
+                    end
                 end
             end
         end

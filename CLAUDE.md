@@ -357,6 +357,17 @@ el fallo está ahí.
   no viendo que el valor resolvió.
   > Rellenar bien el hueco y montar mal la frase da un dato correcto que afirma algo
   > falso. Es el mismo daño que no rellenarlo, con mejor aspecto.
+- **Lo que arregles en el expediente, arréglalo también en la sonda.** Son dos funciones
+  distintas leyendo lo mismo, y **el vigía decide con la sonda**. `enano_tabla()` llevaba
+  ya la selección mitad recencia mitad fuerza, los huecos de plantilla rellenados y el
+  descarte de entradas vacías; `enano_sonda()` no llevaba nada de eso, así que el
+  `detalle` del suceso —que acaba en el prompt, en la crónica **y** en la memoria— podía
+  ser `after varying` o `anything none`.
+  La sonda devuelve ahora **dos** emociones: la más **reciente** (`emo_*`), que es lo que
+  dispara el suceso, y la más **fuerte** (`fue_*`). Si en la misma vuelta de cinco
+  segundos a un enano le llega el duelo por su pareja y detrás una función de teatro,
+  mirar solo la más reciente cuenta el teatro.
+  > De poco sirve que el prompt sepa contar el duelo si quien decide no lo ve.
 - **La memoria se guarda por partida.** Los `unit_id` vuelven a empezar en cada mundo,
   así que sin separar por `dfhack.world.ReadWorldFolder()` el enano 272 de una fortaleza
   heredaría los recuerdos del 272 de otra.

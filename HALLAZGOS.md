@@ -2028,6 +2028,52 @@ no sostienen ninguna conclusión.
 > el prompt, uno en mi documentación, uno en el banco de pruebas, uno en una pieza que
 > hacía lo contrario de su nombre, y uno en la forma de una frase en inglés.
 
+## La sonda, al día — y el bloqueante de la viuda, quitado
+
+Todo lo aprendido ayer se había aplicado a `enano_tabla()`, el expediente completo. Pero
+**el vigía no decide con el expediente: decide con la sonda**, que se había quedado atrás.
+
+Tres cosas que le faltaban:
+
+1. **Los huecos de plantilla.** `emo_causa` salía por el `enum_txt()` viejo, así que el
+   `detalle` del suceso podía ser `after varying` o `due to syndrome`. Y ese detalle no se
+   queda en el prompt: va también a la **crónica** y a la **memoria**, donde se quedaría
+   para siempre. Ahora pasa por `causa_legible()`, igual que el expediente, y si la frase
+   queda coja no se manda.
+2. **Las entradas vacías.** Una emoción con `type` y `thought` a `-1` que fuera la más
+   reciente **ganaba la carrera**, y el suceso salía como `anything none`. Mismo fallo que
+   ya habíamos corregido en el expediente, en la función de al lado.
+3. **Solo miraba la más reciente.** Aquí estaba el bloqueante de verdad.
+
+### Por qué lo tercero dejaba muda a la viuda
+
+Si a un enano le llega el duelo por su pareja y **detrás, en la misma vuelta de cinco
+segundos**, una función de teatro, la sonda solo reportaba el teatro. El vigía disparaba
+`emocion / interest after watching a performance` y el duelo no existía para él.
+
+La sonda devuelve ahora **dos**: la más reciente (`emo_*`, que es lo que dispara) y la más
+fuerte (`fue_*`). Y `detectar()` mira las dos. Probado con ese caso exacto:
+
+```
+emocion          peso  20  interest after watching a performance
+emocion_fuerte   peso  45  sadness at being separated from a loved one
+```
+
+Las dos se detectan, y **la de peso 45 gana la vuelta**. El 45 está elegido para que quede
+por encima del cambio de categoría de estrés (40) —que solo dice *que* cambió, mientras
+que la emoción dice *por qué*— y por debajo de `relacion` (50), que es un vínculo ganado o
+perdido y no un estado de ánimo.
+
+`emocion_fuerte` **no** entra en `UNICOS_POR_PERSONA`, a propósito: un síndrome que afecte
+a media fortaleza produce la misma emoción fuerte en veinte enanos, y eso es una
+repetición, no veinte sucesos.
+
+### Y un arreglo de paso
+
+`"%s %s" % (tipo, causa)` sin `strip()`: cuando DF no da el tipo de emoción, el lado Lua
+manda cadena vacía y el detalle empezaba por un espacio — *" saw somebody's dead body"* —
+que acababa así en la crónica y en la memoria.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a
