@@ -96,6 +96,55 @@ haber probado.
 
 ---
 
+## Qué puede inventar el modelo y qué no
+
+Esta sección se escribe **antes** de construir las interacciones, no después de que
+fallen. Es la única regla del fichero que no viene de una ejecución fallida, y está aquí
+porque el riesgo crece con cada cosa que le dejamos hacer al modelo: hablar solo tiene
+una superficie de invención pequeña; hablar con otro, o actuar, la multiplica.
+
+### La distinción de fondo: textura contra afirmación
+
+Que un enano diga *"noto el frío de la piedra en las manos"* no es una invención: es
+**textura**, no añade nada al mundo. Que diga *"mi hermano murió el invierno pasado"* sí
+lo es: es una **afirmación** sobre hechos del mundo, y o sale del estado de DF o es
+falsa. Un texto convincente y falso es peor que uno soso y cierto, porque el jugador no
+tiene forma de distinguirlo.
+
+Ya pasó dos veces con distinta cara: `Unidad 338` —un valor de relleno mío— acabó
+convertido en un personaje con vida propia, y un niño narró que estaba minando cuando
+los niños no pueden minar. Ninguna de las dos fue culpa del modelo: le dimos permiso.
+
+### Las cinco reglas
+
+1. **Cada frase que afirma algo tiene que tener un ancla visible en el prompt.** Si no
+   se puede señalar el campo del que sale, no puede estar en el texto.
+2. **Ningún valor de relleno llega al prompt.** Si un dato no se resuelve, se omite. No
+   hay sustituto neutro: el modelo convierte cualquier cosa en material narrativo.
+3. **Una escena entre dos enanos se BUSCA en los datos, no se inventa.** Nunca poner a
+   dos modelos a charlar a ver qué sale. Primero se localiza el suceso que los dos ya
+   comparten (misma causa con marcas de tiempo cercanas, o un vínculo real en
+   `relationship_ids`) y el intercambio se genera **desde ahí**. Sin escena encontrada
+   no hay conversación.
+4. **Cuando el LLM pueda actuar, la salida es una lista cerrada, no texto libre.** El
+   modelo elige entre acciones enumeradas y el código valida cada una contra el estado
+   real antes de ejecutarla. Que una acción sea plausible en la frase no la hace posible
+   en el juego.
+5. **La tasa de invención se mide en cada escalón, no se supone.** Cada vez que se
+   amplía lo que el modelo puede hacer: N respuestas, contar cuántas afirman algo que no
+   está en el prompt, y anotar el número en `HALLAZGOS.md`. Sin ese número no se pasa al
+   escalón siguiente.
+
+### El corolario que ya nos ha costado tiempo
+
+Las reglas 1 y 2 son de **construcción del prompt**, y ahí es donde han aparecido
+**cuatro de los cinco** defectos de calidad del texto: el niño minero, las cartas a la
+esposa, las cifras recitadas y la muletilla del «mientras». Antes de culpar al modelo de
+un texto malo, leer el prompt entero que se le mandó. La probabilidad a priori dice que
+el fallo está ahí.
+
+---
+
 ## Hechos ya verificados (no hace falta volver a medirlos)
 
 | Hecho | Dato |
@@ -132,12 +181,18 @@ haber probado.
 - **Todo texto de DF pasa por `df_llm.legible()` antes del prompt.** Es un punto de paso
   obligatorio, no una recomendación: detecta forma de identificador de máquina, lo
   humaniza y **apunta la fuga en `df_llm.FUGAS`** para que se vea qué camino se saltó la
-  traducción, en vez de taparlo. Los campos que siempre vienen de un enum (rasgo,
-  emoción, causa, habilidad, preferencia, tipo de relación, detalle del evento) se pasan
-  con `siempre_enum=True`, porque la forma sola no distingue `Syndrome` de `Tulon`.
-  En el lado Lua se sigue usando `enum_txt()`; `legible()` es la red por si un camino
-  nuevo lo olvida. **Se puso porque el invariante escrito no bastó**: la misma clase de
-  fallo apareció tres veces en caminos distintos.
+  traducción, en vez de taparlo. **Se puso porque el invariante escrito no bastó**: la
+  misma clase de fallo apareció tres veces en caminos distintos.
+  Detecta **solo por forma** (`ALL_CAPS`, `CamelCase`, guiones bajos). Hubo una versión
+  que además marcaba como sospechoso cualquier palabra suelta en los campos de enum
+  (`siempre_enum=True`) y fue un error: `bravery`, `spouse`, `Crossbow` son la salida
+  **correcta** de `enum_txt()`, y las marcaba como fuga — veinte avisos falsos por
+  narración. El parámetro sigue en la firma por compatibilidad y **ya no cambia nada**;
+  no escribir código nuevo que dependa de él. El precio de la vuelta atrás es que
+  `Syndrome` es indistinguible de `Crossbow` por forma: ese caso se ataja en origen, con
+  `enum_txt()` en el lado Lua.
+  > Un guardián que grita lobo veinte veces por vuelta deja de ser un guardián: se
+  > aprende a ignorarlo, y con él se ignora la fuga de verdad.
 - **Hay sucesos que el propio enano no puede narrar.** Muerte, locura y desaparición van
   en **tercera persona** por `construir_epitafio()`. Con el prompt normal (*"esto es lo
   que acaba de pasarte"*) el difunto decía *"se acabó, todo se acabó"* en presente.
@@ -152,6 +207,15 @@ haber probado.
 - **Las captions de DF están en inglés y en tercera persona** (`pleasure near his own
   quality building`) y traen huecos entre corchetes. Hay que decirle al modelo que son un
   apunte del juego y que no las traduzca literalmente.
+- **El `desde=` de `enanos` da la vuelta, no se acaba.** El índice se calcula con
+  `((desde + k) % #pool) + 1`, así que pedir 20 sobre una lista de 5 devuelve 20
+  repitiendo. Cualquier paginación que espere una página corta para saber que ha
+  terminado **no termina nunca**: hay que contar contra `total_pool`.
+- **`relaciones` trae el nombre del otro, no su `id`.** `relationship_ids` sí es un
+  vector de `unit_id`, pero el lado Lua lo resuelve a `{tipo, txt, quien}` y tira el
+  número. Para cualquier cosa que implique a dos enanos (una conversación, una entrada
+  de memoria compartida) hace falta ese `id`: es el único cambio de extracción que
+  requiere la fase de interacciones.
 - **La memoria se guarda por partida.** Los `unit_id` vuelven a empezar en cada mundo,
   así que sin separar por `dfhack.world.ReadWorldFolder()` el enano 272 de una fortaleza
   heredaría los recuerdos del 272 de otra.

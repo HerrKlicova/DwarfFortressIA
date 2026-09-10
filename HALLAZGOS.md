@@ -1102,6 +1102,96 @@ No es un fallo, pero sí el dato que confirma la duda de la revisión externa so
 ritmo: **hay muchísimo más material del que se puede contar**, así que el criterio de
 qué merece contarse importa más que la detección. Es la pregunta de la sesión larga.
 
+## Revisión de código: el epitafio se construye vacío
+
+Encontrado **leyendo**, no ejecutando, al releer el proyecto entero. Es el mismo tipo de
+fallo que el de `EN_TERCERA`: una rama que existe, compila y no llega a hacer lo que
+dice su comentario.
+
+### La cadena
+
+`_hablar()` necesita el expediente completo del enano que disparó el suceso, así que:
+
+1. Pide `enanos(n=1, detalle="completo")` — que devuelve **el primero del pool**, no el
+   que se busca. Acierta solo por casualidad. Es una petición tirada casi siempre.
+2. Si falla, `_buscar()` pagina en bloques de 20 con `detalle=completo`.
+
+El problema es **para quién** se hace esto. Los sucesos de más peso —`muerte` (100),
+`locura` (90), `desaparicion` (60)— se detectan precisamente porque el enano **ya no
+está en `getCitizens()`**. Buscarlo ahí es buscarlo donde por definición no puede estar.
+
+Y no para pronto: el `desde=` del lado Lua da la vuelta (`((desde + k) % #pool) + 1`),
+así que **siempre** devuelve los 20 pedidos aunque el pool tenga 5. La condición de
+corte `if len(enanos) < 20: break` no se cumple nunca. Se hacen las 10 páginas enteras.
+
+### El coste
+
+Con la medida del paso 0 (`completo` = 344 KB y 40 ms para 64 → ~5,4 KB y 0,63 ms por
+enano), cada muerte cuesta:
+
+| | peticiones | tráfico | Lua |
+|---|---|---|---|
+| el `n=1` que se descarta | 1 | 5 KB | 0,6 ms |
+| las 10 páginas de `_buscar` | 10 | **~1,1 MB** | **~125 ms** |
+| resultado | | | **`None`** |
+
+Unos 12 frames de juego congelados, por partes, para no encontrar nada.
+
+### Lo grave no es el coste, es lo que se pierde
+
+Tras el `None`, `_hablar()` cae en `enano = evento["enano"]`, que es **el objeto de la
+sonda**. Y `enano_sonda()` no trae `profesion`, ni `edad`, ni `relaciones`, ni
+`habilidades`.
+
+`construir_epitafio()` usa exactamente esos cuatro campos. En esta misma página está
+escrito que el epitafio se hace *"con los datos reales del difunto —oficio, edad, a quién
+dejaba atrás, en qué era bueno"*. **No es cierto en ejecución.** El prompt que sale de
+verdad para cada muerte es:
+
+```
+Se llamaba Tosid Nishkesh, sin oficio, de ? anos.
+Lo que ha ocurrido: ha muerto.
+```
+
+Sin la línea *"Dejaba atrás a: …"* y sin la de *"Se le daba bien: …"*. El cronista está
+escribiendo epitafios de un desconocido, y la prosa sale correcta, que es lo que impide
+notarlo.
+
+Esto explica en parte el *"nadie reaccionó a la muerte"*: aunque el evento de relación
+hubiera saltado, la pieza que nombra a la viuda nunca llegó al prompt.
+
+### El arreglo
+
+Un `id=` en el subcomando `enanos` del lado Lua, que resuelva por `df.unit.find(id)` en
+vez de recorrer `getCitizens()`. Una petición, un enano, funciona igual para vivos que
+para muertos. **Sin probar contra el juego: queda pendiente, no aplicado.**
+
+Mientras tanto, el orden correcto sería capturar el expediente **antes** de que el enano
+desaparezca —la sonda ya pasa por todos en cada vuelta— pero eso son 344 KB por vuelta y
+está descartado por coste. El `id=` es el camino.
+
+### Lo que se lleva de aquí
+
+Van **cinco** defectos del mismo patrón: código escrito, comentario escrito, rama
+inalcanzable o alimentada con datos que no tienen lo que promete. `CLAUDE.md` ya dice
+*"comprobar que la rama es ALCANZABLE"*; hay que añadirle en la práctica **"y que los
+datos que le llegan traen los campos que usa"**. Un `.get()` con valor por defecto no da
+error: da `sin oficio` y `?`.
+
+## Segundo hallazgo de la revisión: `relaciones` no trae el `id` del otro
+
+`relationship_ids` **sí** es un vector de `unit_id`, pero `enano_tabla()` lo resuelve a
+`{tipo, txt, quien}` y descarta el número. Hoy da igual: el prompt solo necesita el
+nombre.
+
+Para las conversaciones no da igual. Para poner a dos enanos a hablar hay que poder:
+comprobar que el otro sigue vivo y en el mapa, pedir su expediente, y escribir la entrada
+de memoria compartida con `participantes: [A, B]` — y las tres cosas se hacen por `id`,
+no por nombre (los nombres se repiten en DF).
+
+Es **el único cambio de extracción** que la fase de interacciones necesita, y va en la
+misma línea que el `id=` de arriba.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a
