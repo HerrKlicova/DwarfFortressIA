@@ -1540,6 +1540,61 @@ se omite).
 No se ha tocado el prompt todavía: primero ver qué da DF, luego arreglar. Es la tercera
 vez en esta ronda que el orden importa.
 
+## Las 72 emociones de Tirist: los corchetes eran huecos, y hay un hallazgo grande
+
+`emociones id=311` devuelve 72 filas. Tres cosas.
+
+### 1. Nuestro tratamiento de los corchetes estaba mal
+
+Las captions crudas de DF son **plantillas**:
+
+```
+'after [varying]'                          'due to [syndrome]'
+'upon improving [skill]'                   "saw [somebody]'s dead body"
+'near a [quality] tastefully arranged [building]'
+'after sleeing in a [quality] bedroom'     'talking with a [relation]'
+```
+
+`enum_txt()` hacía `gsub('%[(.-)%]', '%1')`, que **quita los corchetes y deja la palabra
+de dentro como si fuera contenido**. A veces cuela por casualidad —`saw somebody's dead
+body` se lee bien— y a veces sale un sinsentido: `after varying`, `upon improving skill`,
+y `due to syndrome`, que es de donde venía aquel *"¡Euphoria! ¡Qué alegría!"*.
+
+Quien rellena el hueco es **`subthought`**, y su significado **depende del tipo de
+pensamiento**. Y no hay atajo: `getThoughtText`, `getThoughtDescription` y
+`getUnitThought` **no existen** en esta build. Lo comprobamos preguntando.
+
+### 2. El presupuesto del prompt se lo come una sola causa
+
+De las 72 filas, más de la mitad son `WatchPerform`. La deduplicación por (tipo, causa)
+que se puso esta tarde estaba más justificada de lo que pensábamos: sin ella, seis huecos
+de emoción se llenaban de la misma función de teatro.
+
+### 3. `SawDeadBody` aparece doce veces, con doce `subthought` distintos
+
+```
+UNEASINESS  SawDeadBody  867 · 868 · 869 · 870 · 1260 · 1261
+ANYTHING    SawDeadBody  1007 · 1012 · 1262 · 1264 · 1267
+```
+
+La caption es `"saw [somebody]'s dead body"`. **Si ese `subthought` es la persona, DF está
+registrando quién vio el cadáver de quién.**
+
+Eso no es un detalle de formato: es **el disparador de las conversaciones, servido por el
+juego**. No hay que inferir que la viuda debería reaccionar cruzando `relationship_ids`
+con una lista de bajas — DF ya anota, en las emociones de Tirist, que vio el cuerpo de
+alguien concreto, doce veces y con doce identidades distintas.
+
+La comprobación tiene un resultado **predicho**: Tosid Nishkesh, su cónyuge, murió en esta
+partida. Si uno de esos doce números resuelve a Tosid, queda confirmado de golpe el
+significado del campo y el mecanismo entero.
+
+Por eso el sondeo no adivina: prueba **seis interpretaciones** de cada `subthought`
+—`need_type`, `job_skill`, `unit_relationship_type`, `building_type`, figura histórica y
+unidad— y devuelve las que resuelven a algo. La caption dice cuál encaja.
+
+**Nada del prompt se ha tocado todavía.** Primero ver, luego arreglar.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a

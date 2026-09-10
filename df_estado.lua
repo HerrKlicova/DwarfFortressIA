@@ -647,6 +647,32 @@ end
 -- porque en el prompt salio 'loneliness after varying' -- una caption a medias
 -- que el modelo completo por su cuenta. Para arreglarlo hay que ver primero que
 -- da DF de verdad, no suponerlo.
+-- Que puede SER un 'subthought'. No se supone: se prueba cada interpretacion
+-- y se devuelven las que resuelven a algo. La caption dice cual encaja:
+-- 'after [varying]' pide un need_type, "saw [somebody]'s dead body" pide una
+-- persona. Ver las seis juntas es lo que permite decidir sin adivinar.
+local function pistas_de(n)
+    if type(n) ~= 'number' or n < 0 then return nil end
+    local p = {}
+    local function anota(k, v)
+        if type(v) == 'string' and v ~= '' then p[#p + 1] = k .. '=' .. v end
+    end
+    anota('need', try(function() return df.need_type[n] end, nil))
+    anota('skill', try(function() return df.job_skill[n] end, nil))
+    anota('rel', try(function() return df.unit_relationship_type[n] end, nil))
+    anota('edificio', try(function() return df.building_type[n] end, nil))
+    anota('histfig', try(function()
+        local h = df.historical_figure.find(n)
+        return h and dfstr(dfhack.translation.translateName(h.name)) or nil
+    end, nil))
+    anota('unidad', try(function()
+        local u2 = df.unit.find(n)
+        return u2 and dfstr(nombre_de(u2)) or nil
+    end, nil))
+    if #p == 0 then return nil end
+    return p
+end
+
 if sub == 'emociones' then
     local id = math.floor(tonumber(opt.id) or -1)
     local u = try(function() return df.unit.find(id) end, nil)
@@ -673,6 +699,7 @@ if sub == 'emociones' then
                 cap = try(function()
                     return df.unit_thought_type.attrs[th].caption end, ''),
                 sub_n = sb,
+                pistas = pistas_de(sb),
                 a = math.floor(try(function() return m.year end, -1)),
                 t = math.floor(try(function() return m.year_tick end, -1)),
             }

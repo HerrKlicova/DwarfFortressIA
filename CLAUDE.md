@@ -210,11 +210,23 @@ el fallo está ahí.
 - **Las captions de DF están en inglés y en tercera persona** (`pleasure near his own
   quality building`) y traen huecos entre corchetes. Hay que decirle al modelo que son un
   apunte del juego y que no las traduzca literalmente.
-  **Y algunas vienen a medias**: `after varying` no significa nada por sí sola. DF la
-  completa con el campo `subthought` de la emoción, que hasta ahora se tiraba. Sin él,
-  el hueco lo rellena el modelo — *"esta soledad me pesa después de tanto variar de un
-  lado a otro"* salió de ahí. Diagnóstico: `df_llm.py emociones id=N` enseña la fila
-  cruda con `subthought` y la caption sin tocar.
+- **Los corchetes de las captions son HUECOS de plantilla, no texto.** Medido: las
+  captions crudas son `'after [varying]'`, `'due to [syndrome]'`, `'upon improving
+  [skill]'`, `"saw [somebody]'s dead body"`, `'near a [quality] [building]'`. El
+  `enum_txt()` del lado Lua hacía `gsub('%[(.-)%]', '%1')`, que **conserva la palabra del
+  hueco como si fuera contenido**.
+  A veces cuela por suerte (`saw somebody's dead body` se lee bien) y a veces produce
+  sinsentido: `after varying`, `due to syndrome` —de ahí venía el *"¡Euphoria! ¡Qué
+  alegría!"*— y `upon improving skill`.
+  Quien rellena esos huecos es el campo **`subthought`** de la emoción, y su significado
+  **depende del tipo de pensamiento**: para `NeedsUnfulfilled` es un `need_type`, para
+  `SawDeadBody` parece una persona, para `ImproveSkill` un `job_skill`. No hay ninguna
+  función de DFHack que componga el texto: `getThoughtText`, `getThoughtDescription` y
+  `getUnitThought` **no existen** en esta build (comprobado).
+  Diagnóstico: `df_llm.py emociones id=N` enseña la fila cruda, la caption sin tocar y
+  qué resuelve cada `subthought` por seis caminos distintos.
+  > Un hueco de plantilla que se deja pasar como contenido es peor que un hueco vacío:
+  > parece un dato y el modelo lo trata como tal.
 - **El `desde=` de `enanos` da la vuelta, no se acaba.** El índice se calcula con
   `((desde + k) % #pool) + 1`, así que pedir 20 sobre una lista de 5 devuelve 20
   repitiendo. Cualquier paginación que espere una página corta para saber que ha

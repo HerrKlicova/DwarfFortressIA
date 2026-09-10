@@ -757,14 +757,37 @@ def orden_emociones(df, args):
     for f in d.get("render", []):
         print("    [%s] %s (%s)"
               % ("SI" if f.get("tipo") == "function" else "no", f["n"], f.get("tipo")))
-    print("\n  %-3s %-20s %-26s %-6s %s"
-          % ("i", "emocion", "causa", "sub", "caption de DF"))
-    for f in d.get("filas", []):
-        print("  %-3s %-20s %-26s %-6s %r"
-              % (f.get("i"), f.get("tipo"), f.get("causa"), f.get("sub_n"), f.get("cap")))
-    print("\n  %d filas. En las captions cortadas ('after varying'), mirar si sub_n vale"
-          % len(d.get("filas", [])))
-    print("  algo distinto de -1: entonces el complemento existe y solo hay que resolverlo.")
+    filas = d.get("filas", [])
+
+    # Solo las que llevan un hueco [...] en la caption: son las unicas donde el
+    # subthought tiene algo que decir. Y sin repetir el mismo par causa+sub.
+    con_hueco, vistas = [], set()
+    for f in filas:
+        if "[" not in (f.get("cap") or ""):
+            continue
+        clave = (f.get("causa"), f.get("sub_n"))
+        if clave in vistas:
+            continue
+        vistas.add(clave)
+        con_hueco.append(f)
+
+    print("\n  CAPTIONS CON HUECO (%d distintas de %d filas)" % (len(con_hueco), len(filas)))
+    print("  %-24s %-7s %s" % ("causa", "sub", "caption / que resuelve ese sub"))
+    for f in con_hueco:
+        print("  %-24s %-7s %s" % (f.get("causa"), f.get("sub_n"), f.get("cap")))
+        for p in (f.get("pistas") or []):
+            print("  %-24s %-7s    -> %s" % ("", "", p))
+        if not f.get("pistas"):
+            print("  %-24s %-7s    -> (no resuelve por ningun camino)" % ("", ""))
+
+    # Y el recuento por causa, que dice donde se va el presupuesto del prompt.
+    cuenta = {}
+    for f in filas:
+        cuenta[f.get("causa")] = cuenta.get(f.get("causa"), 0) + 1
+    print("\n  REPETICIONES (%d filas en total)" % len(filas))
+    for causa, n in sorted(cuenta.items(), key=lambda x: -x[1]):
+        if n > 1:
+            print("    %-26s %d" % (causa, n))
 
 
 def orden_ui(df, _args):
