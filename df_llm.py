@@ -14,7 +14,9 @@ corre en la misma maquina (Player2) y devuelve la respuesta al log de anuncios.
   python df_llm.py hablar id=272 --epitafio
                                    lo que se anunciaria si acabara de morir
   python df_llm.py hablar id=272 --veces=10 --seco
-                                   diez respuestas al MISMO prompt, para medir
+                                   diez respuestas seguidas, para medir
+  python df_llm.py hablar id=272 --veces=10 --seco --memoria
+                                   igual, pero cada una recuerda las anteriores
   python df_llm.py medir [n]       n llamadas al LLM con el mismo prompt: mediana y rango
   python df_llm.py enums           que enums traen texto legible de DF
   python df_llm.py ui              que ofrece la interfaz de DFHack en esta build
@@ -720,6 +722,7 @@ def orden_hablar(df, args):
     seco = "--seco" in args
     ver_prompt = "--prompt" in args
     epitafio = "--epitafio" in args
+    con_memoria = "--memoria" in args
     veces = 1
     for a in args:
         if a.startswith("--veces="):
@@ -748,28 +751,52 @@ def orden_hablar(df, args):
     p2 = Player2()
     print("Player2 en 127.0.0.1:%d -> %s" % (p2.port, p2.salud()))
 
+    # --memoria enciende el mecanismo anti-repeticion que YA existe y que esta
+    # medicion tenia apagado sin darse cuenta: construir_prompt() acepta
+    # 'recuerdos', el vigia se los pasa y esta orden no. Estabamos midiendo la
+    # repeticion de un enano SIN memoria y culpando al prompt.
+    #
+    # Escribe en 'memoria_prueba', aparte de la de verdad, para no ensuciarla.
+    mem = None
+    if con_memoria:
+        import df_memoria
+        mem = df_memoria.Memoria(df.estado().get("partida") or "sin_partida",
+                                 carpeta="memoria_prueba")
+        print("Memoria de prueba: %s" % mem.resumen())
+
     for enano in enanos:
-        if epitafio:
-            prompt = construir_epitafio(enano, "ha muerto")
-        else:
-            prompt = construir_prompt(enano)
-        print("\n--- %s, %s, %s anos (%d caracteres de prompt)"
+        huella = None
+        if mem is not None:
+            import df_memoria
+            huella = df_memoria.huella_de(enano)
+        print("\n--- %s, %s, %s anos"
               % (enano.get("nombre"), enano.get("profesion", "?"),
-                 enano.get("edad", "?"), len(prompt)))
+                 enano.get("edad", "?")))
         # De donde salio el sexo. Si pone (SUPUESTO) o "sin resolver", el
         # genero del prompt no esta respaldado y hay que mirarlo en el juego.
         print("    sexo: %s   via: %s"
               % (enano.get("sexo", "(no viene)"), enano.get("sexo_via", "?")))
-        if ver_prompt:
-            for linea in prompt.splitlines():
-                print("    | " + linea)
-        # --veces=N repite el MISMO prompt: es como se mide la tasa de
-        # invencion sin que cambie nada mas (regla 5 de la doctrina).
+
+        # --veces=N repite la misma tirada: es como se mide (regla 5). El prompt
+        # se reconstruye en cada vuelta porque las listas van barajadas y, con
+        # --memoria, porque los recuerdos crecen.
         for vuelta in range(veces):
+            if epitafio:
+                prompt = construir_epitafio(enano, "ha muerto")
+            else:
+                recuerdos = mem.para_prompt(enano.get("id"), huella, 3) if mem else None
+                prompt = construir_prompt(enano, recuerdos=recuerdos)
+            if ver_prompt and vuelta == 0:
+                print("    (%d caracteres de prompt)" % len(prompt))
+                for linea in prompt.splitlines():
+                    print("    | " + linea)
             t0 = time.perf_counter()
             texto = p2.completar([{"role": "user", "content": prompt}])
             marca = ("  [%d/%d]" % (vuelta + 1, veces)) if veces > 1 else ""
             print("    (%.2f s)%s %s" % (time.perf_counter() - t0, marca, texto))
+            if mem is not None and not epitafio:
+                mem.recordar(enano.get("id"), huella, "prueba", "medicion", texto,
+                             participantes=[enano.get("id")])
         for origen, crudo in FUGAS:
             print("    [fuga] %s llego sin traducir: %r" % (origen, crudo))
         del FUGAS[:]

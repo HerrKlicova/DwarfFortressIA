@@ -1775,6 +1775,73 @@ emociones, en vez de caer siempre en la misma.
 > mirar las dos cosas juntas**: bajar la invención sin mirar la variedad da un enano que
 > no miente y no dice nada.
 
+## Segunda tirada: el barajado ayuda a medias, y la medición estaba coja
+
+### Los aperturas
+
+| | antes | después |
+|---|---|---|
+| La frase de apertura más repetida | 7 de 10 | **3 de 10** |
+
+Pero aparece un segundo imán: **cinco de diez** empiezan por *"Echo de menos a Tosid…"*.
+Entre los dos, ocho de diez arrancan igual.
+
+Y el barajado no puede hacer nada contra eso, porque **la causa es otra**. Los dos imanes
+son (a) la línea fija del estrés —*"Por dentro sientes una gran calma"*, que no está en
+ninguna lista barajable— y (b) la emoción que más pesa. Lo primero fue sesgo de posición y
+se arregló; esto es **saliencia**, y es distinto.
+
+Conviene separar dos cosas que estaba mezclando:
+
+- Que **mencione a Tosid** en cinco de diez **no es un fallo**. Está de duelo. Una persona
+  también volvería sobre eso.
+- Que use **las mismas palabras** sí lo es. Y de hecho solo tres respuestas (1, 2 y 4) son
+  literalmente la misma; las demás son variaciones — *"se me agarra al pecho"*, *"se me
+  clava en el pecho"*, *"una calma que casi duele"*.
+
+### La costura vuelve, más pequeña
+
+```
+9 · "como si parte de mí siguiera dormido en NUESTRA cama"
+10 · "como si una parte de mí se hubiera quedado dormida DESDE QUE NOS SEPARARON"
+```
+
+Dos de diez. La primera une `contentment after sleeping in a bedroom` con `spouse` y
+concluye una cama compartida. La segunda convierte *"at being separated"* —pasivo, sin
+agente— en *"nos separaron"*, que sí tiene agente.
+
+Es el mismo mecanismo de la *"última función que vimos juntos"*, a menor escala. **El
+freno lo redujo, no lo cerró.**
+
+### Lo honesto sobre las dos tiradas
+
+Tirada 1: 0 de 10 escenas, 2 marcas de tiempo en el borde.
+Tirada 2: 0 de 10 escenas, 2 costuras pequeñas.
+
+Con muestras de diez, **la diferencia entre las dos está dentro del ruido**. Lo único
+sólido es la comparación con el antes del freno, donde la costura salió en la única
+respuesta que había. No se va a declarar una tendencia con esto: ya nos pasó con la
+medición de rasgos, donde la métrica se invirtió entre tiradas y se reportó como nula.
+
+### Y el fallo de método: la medición tenía la memoria apagada
+
+`construir_prompt()` acepta `recuerdos`, y `para_prompt()` de `df_memoria` construye
+exactamente esto:
+
+> *"Cosas que ya has dicho en voz alta. NO las repitas ni te contradigas con ellas."*
+
+El vigía se los pasa. **La orden `hablar` no.** O sea que llevamos dos tiradas midiendo la
+repetición de un enano **sin memoria**, y culpando al prompt de un problema que el
+proyecto ya tiene resuelto por otro lado.
+
+Añadido `--memoria`: cada vuelta ve lo que dijo en las anteriores. Escribe en
+`memoria_prueba/`, aparte de la de verdad. Con eso la medición prueba el sistema entero y
+no una pieza suelta.
+
+> Tercer defecto de esta ronda que no está en el modelo: uno en el prompt, uno en mi
+> documento, y este en el banco de pruebas. Un banco que apaga una pieza sin decirlo mide
+> otra cosa distinta de la que crees.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a

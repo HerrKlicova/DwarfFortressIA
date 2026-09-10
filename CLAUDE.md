@@ -319,6 +319,15 @@ el fallo está ahí.
   Un freno contra la invención estrecha lo que se puede decir; si encima hay sesgo de
   posición, queda una sola frase repetida. Las dos métricas se leen **juntas**, en la
   misma tirada de `--veces=N`.
+- **Repetir un tema no es repetir una frase.** Que un enano de duelo mencione a su pareja
+  en cinco de diez respuestas es correcto, no un defecto: una persona también volvería
+  sobre eso. Lo que hay que contar es cuántas usan **las mismas palabras**. Medir «cuántas
+  hablan de X» empuja a arreglar algo que no está roto.
+- **El banco de pruebas también se verifica.** Dos tiradas midiendo la repetición de un
+  enano se hicieron con **la memoria apagada**: `construir_prompt()` acepta `recuerdos`,
+  el vigía se los pasa y la orden `hablar` no lo hacía. Se estaba culpando al prompt de un
+  problema que el proyecto ya resolvía en otra pieza. Antes de sacar conclusiones de una
+  medición, comprobar que mide el sistema **entero**.
 - **La memoria se guarda por partida.** Los `unit_id` vuelven a empezar en cada mundo,
   así que sin separar por `dfhack.world.ReadWorldFolder()` el enano 272 de una fortaleza
   heredaría los recuerdos del 272 de otra.
