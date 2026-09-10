@@ -1910,6 +1910,66 @@ muestras de diez; **no se declara ninguna tendencia** más allá de eso.
 > Cuarto defecto de esta ronda fuera del modelo: el prompt, mi documento, el banco de
 > pruebas, y ahora una pieza que hacía lo contrario de lo que decía su nombre.
 
+## Cuarta tirada: la mejor hasta ahora, y un fallo mío en 7 de 10
+
+### Lo que se cierra
+
+| | |
+|---|---|
+| Fuera de personaje | **0 de 10** — el filtro de salida no tuvo que recortar nada |
+| Respuestas idénticas | **0** — en la tirada anterior la 6 era copia literal de la 3 |
+| Apertura más repetida | 3 de 10 (*"La verdad es que me siento en paz"*) |
+| Escenas fabricadas | 0 de 10 |
+
+La memoria por temas hace lo que se le pide sin cebar la repetición, y las diez recorren
+material distinto: la discusión, la mina, la planta, la ausencia de Tosid, la calma.
+
+### Pero siete de diez dicen que mejoró una planta
+
+> *"Me alegra haber **mejorado esa planta**"* · *"Saber que **mejoré las plantas**"* ·
+> *"lo bien que ha quedado **la planta que mejoré**"*
+
+Tirist no mejoró ninguna planta. Mejoró **su habilidad** de cultivo.
+
+La culpa es del relleno que puse ayer. `upon improving [skill]` con el valor a secas queda
+**`upon improving plant`** — y eso, en inglés, significa exactamente lo que el modelo
+escribió. **No se lo inventó: lo leyó bien.** `improving` pide una competencia y le dimos
+una cosa.
+
+Es una categoría que no teníamos: **el hueco se rellenó con el valor correcto y la frase
+montada dice otra cosa**. Un dato bueno dentro de una frase mal construida hace el mismo
+daño que un dato inventado, y encima tiene mejor aspecto.
+
+Corregido: cada hueco lleva su **forma**, no solo su valor.
+
+| Hueco | Antes | Ahora |
+|---|---|---|
+| `[skill]` | `upon improving plant` | `upon improving **skill at** plant` |
+| `[relation]` | `talking with a acquaintance passing` | `talking with a **person of the** acquaintance passing **sort**` |
+| `[varying]` | `after varying` | `after **an unmet need to** be with friends` |
+
+Y la lección de método: **la forma se comprueba leyendo la frase entera montada**, no
+viendo que el valor resolvió. Ayer di por bueno `[skill]` porque `sub=15` devolvía
+`CLOTHESMAKING` y eso cuadraba con las habilidades del enano. Cuadraba el **dato**. La
+**frase** no la leí.
+
+### Roza la raya, 1 de 10
+
+> *"el vacío que dejó Tosid **al marcharse**"*
+
+`at being separated from a loved one` es pasivo y sin agente; *"al marcharse"* pone a
+Tosid haciendo algo. Misma familia que el *"nos separaron"* de la tirada anterior, y con
+la misma frecuencia baja.
+
+### Las cuatro tiradas
+
+| | escenas | idénticas | apertura top | fuera de personaje |
+|---|---|---|---|---|
+| freno | 0/10 | — | 7/10 | 0 |
+| + barajado | 0/10 | — | 3/10 | 0 |
+| + memoria en prosa | 0/10 | **1** | 4/10 | **1/10** |
+| + memoria por temas + filtro | 0/10 | **0** | 3/10 | **0** |
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a

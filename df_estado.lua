@@ -137,6 +137,15 @@ local HUECO_TIPO = {
 -- inventarlo.
 local HUECO_FORMA = {
     varying = function(v) return 'an unmet need to ' .. v end,
+    -- 'upon improving [skill]' con el hueco a secas daba "upon improving
+    -- plant", y el modelo lo leyo como un OBJETO: "me alegra haber mejorado
+    -- esa planta". Salio en 7 de 10 respuestas. No es que se lo inventara --
+    -- es que ese ingles dice eso. 'improving' pide una competencia, no una
+    -- cosa, asi que se nombra como lo que es.
+    skill = function(v) return 'skill at ' .. v end,
+    -- 'talking with a acquaintance passing' no es ingles ni concuerda. El
+    -- valor es un TIPO de vinculo, no un nombre.
+    relation = function(v) return 'person of the ' .. v .. ' sort' end,
 }
 
 -- Huecos que se pueden dejar como palabra porque son indefinidos de verdad en

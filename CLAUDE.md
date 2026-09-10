@@ -347,6 +347,16 @@ el fallo está ahí.
   (el campo `detalle`, escrito por nosotros) y se pide **avanzar**, no se prohíbe.
   > Escribir la regla no basta para cumplirla. Esta la teníamos escrita y la violamos en
   > otro fichero.
+- **Un hueco rellenado con el valor a secas puede decir otra cosa.** `upon improving
+  [skill]` con el hueco puesto tal cual daba **`upon improving plant`**, y el modelo lo
+  leyó como un **objeto**: *"me alegra haber mejorado esa planta"*. Salió en **7 de 10**
+  respuestas.
+  No es invención: **ese inglés dice eso**. `improving` pide una competencia, no una cosa.
+  Cada hueco necesita su **forma**, no solo su valor —`skill at X`, `an unmet need to X`,
+  `a person of the X sort`—, y la forma se comprueba **leyendo la frase entera montada**,
+  no viendo que el valor resolvió.
+  > Rellenar bien el hueco y montar mal la frase da un dato correcto que afirma algo
+  > falso. Es el mismo daño que no rellenarlo, con mejor aspecto.
 - **La memoria se guarda por partida.** Los `unit_id` vuelven a empezar en cada mundo,
   así que sin separar por `dfhack.world.ReadWorldFolder()` el enano 272 de una fortaleza
   heredaría los recuerdos del 272 de otra.
