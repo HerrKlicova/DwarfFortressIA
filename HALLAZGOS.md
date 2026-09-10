@@ -1721,6 +1721,60 @@ freno separa dos cosas:
 respuestas. Es la herramienta de la regla 5: contar cuántas de diez fabrican una escena.
 Sin ese número no se pasa a las conversaciones.
 
+## Primera medición de la tasa de invención: 0 de 10 ✅ y un efecto secundario
+
+Diez respuestas al **mismo** prompt, con el freno de la costura puesto. Contando escenas
+fabricadas —un acompañante, un lugar, un antes o un después que no estén en el prompt—:
+
+| | |
+|---|---|
+| Escenas fabricadas | **0 de 10** |
+| Antes del freno | 1 de 1 (*"la última función que vimos juntos"*) |
+
+Ninguna de las diez inventa con quién estaba, dónde ocurrió, ni qué pasó antes. Todo lo
+que afirman se puede señalar en el prompt: la mesa, la separación de Tosid, la inquietud
+por no haber rezado, la satisfacción del trabajo, la amargura de la discusión.
+
+Y lo que **sí** hacen —mezclar sentimientos— es lo que queríamos conservar:
+
+> *"La mesa bien puesta me ha dejado una calma que casi borra la tristeza de no tener a
+> Tosid cerca."*
+
+Es interioridad, no una afirmación sobre el mundo. El freno distingue bien las dos cosas.
+
+La muestra es de diez y de un solo enano: no dice que la costura sea imposible, dice que
+**dejó de aparecer en las diez veces que antes aparecía**. Se vuelve a medir en cuanto
+entren las conversaciones, que es donde la superficie se multiplica.
+
+### Lo único que roza la raya
+
+Dos marcas de tiempo que nadie puso: *"la satisfacción del trabajo **de hoy**"* y *"la
+mesa bien puesta **de ayer**"*. No afirman un suceso nuevo —el trabajo y la mesa están en
+el prompt—, solo lo fechan. Queda anotado como el borde de la categoría, no como fallo.
+
+### El efecto secundario: quitar invención quitó variedad
+
+**Siete de diez empiezan por la misma frase**: *"La mesa bien puesta me ha dejado..."*. Y
+*"Echo de menos a Tosid con una tristeza que se me agarra al pecho"* aparece **palabra por
+palabra** en cuatro. Las respuestas 8 y 9 son casi la misma.
+
+La causa no es el freno: es que **la lista de emociones iba siempre en el mismo orden** y
+el modelo se agarra al primer elemento. Es el mismo sesgo de posición que la muletilla del
+«mientras», con otra forma.
+
+Y se arregla igual que aprendimos entonces: **barajando y sin decírselo**. Pedirle *"no
+empieces por el primero"* le mete la idea en el contexto, que es exactamente lo que falló
+la otra vez. El orden de esa lista no significa nada —la selección ya se hizo en Lua, por
+recencia y fuerza—, así que perderlo no cuesta nada.
+
+Comprobado sobre 200 prompts: la primera posición se reparte 60/49/49/42 entre las cuatro
+emociones, en vez de caer siempre en la misma.
+
+> Un freno contra la invención estrecha el espacio de lo que se puede decir. Si además el
+> prompt tiene un sesgo de posición, lo que queda es una sola frase repetida. **Hay que
+> mirar las dos cosas juntas**: bajar la invención sin mirar la variedad da un enano que
+> no miente y no dice nada.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a

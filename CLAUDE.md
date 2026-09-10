@@ -308,6 +308,17 @@ el fallo está ahí.
   sino fabricar **sucesos**: con quién, dónde, y qué pasó antes o después.
   > Cuantas más piezas ciertas le das, más costuras posibles hay. Esto crece con las
   > conversaciones, no se queda igual.
+- **Las listas del prompt van barajadas.** Con la lista de emociones siempre en el mismo
+  orden, **7 de 10** respuestas del mismo enano empezaban por su primer elemento, y una
+  frase entera se repetía palabra por palabra en 4. Es el sesgo de posición, hermano de la
+  muletilla del «mientras».
+  Se baraja y **no se le dice**: pedirle *"no empieces por el primero"* mete la idea en el
+  contexto. El orden de esas listas no significa nada —la selección ya se hizo antes—, así
+  que barajar no cuesta nada.
+- **Medir la invención sin mirar la variedad da un enano que no miente y no dice nada.**
+  Un freno contra la invención estrecha lo que se puede decir; si encima hay sesgo de
+  posición, queda una sola frase repetida. Las dos métricas se leen **juntas**, en la
+  misma tirada de `--veces=N`.
 - **La memoria se guarda por partida.** Los `unit_id` vuelven a empezar en cada mundo,
   así que sin separar por `dfhack.world.ReadWorldFolder()` el enano 272 de una fortaleza
   heredaría los recuerdos del 272 de otra.

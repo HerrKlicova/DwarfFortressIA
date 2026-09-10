@@ -551,6 +551,8 @@ def construir_prompt(enano, instruccion=None, recuerdos=None, tope_rasgos=None):
         partes.append("Por dentro sientes %s." % como)
 
     rasgos = _rasgos_marcados(enano.get("rasgos", []), tope_rasgos or TOPE_RASGOS)
+    rasgos = list(rasgos)
+    random.shuffle(rasgos)          # mismo motivo que los pensamientos
     if rasgos:
         partes.append("Rasgos tuyos que destacan: "
                       + ", ".join("%s (%d de 100)" % (_txt(r), r["v"]) for r in rasgos) + ".")
@@ -559,6 +561,17 @@ def construir_prompt(enano, instruccion=None, recuerdos=None, tope_rasgos=None):
     # las vacias, asi que se cogen las PRIMERAS. Con [-N:] se cogerian las
     # mas viejas de las que vengan.
     pens = (enano.get("pensamientos") or [])[:TOPE_PENSAMIENTOS]
+    # Y se BARAJAN antes de escribirlas. Medido: con la lista siempre en el
+    # mismo orden, 7 de 10 respuestas del mismo enano empezaban por el primer
+    # elemento ("La mesa bien puesta me ha dejado..."). Es el mismo sesgo de
+    # posicion que la muletilla del "mientras".
+    #
+    # Se arregla barajando y NO diciendoselo: pedirle "no empieces por el
+    # primero" mete la idea en el contexto, que es justo lo que fallo la vez
+    # anterior. El orden no significa nada -- la seleccion ya se hizo en Lua --
+    # asi que perderlo no cuesta nada.
+    pens = list(pens)
+    random.shuffle(pens)
     if pens:
         partes.append("Lo que has sentido ultimamente: "
                       + "; ".join(("%s %s" % (
