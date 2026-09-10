@@ -42,14 +42,17 @@ Hemos resuelto la generación y **no** la entrega. El panel de anuncios de DFHac
 tiene identidad, ni fecha, ni sitio — y compite con los anuncios de verdad del juego,
 que son los que hay que leer para no perder la fortaleza.
 
-**5 · Sondear qué ofrece la interfaz en la build instalada**
-Subcomando `ui`, con el patrón de `enums`: no suponer, **preguntar a la build**.
-Comprobar si hay sistema de *overlay* en Lua (pintar sobre la interfaz sin plugin en
-C++), si `showAnnouncement` tiene variantes con posición de mapa (pulsar el mensaje y
-que la cámara salte al enano), si se puede pintar en la ficha de una unidad, y qué
-colores admite. **Esta tarea decide si hace falta el plugin o no**, y por eso va antes
-de abrir nada en paralelo: un plugin en C++ ata a compilar y se rompe con cada
-actualización de DFHack; un overlay en Lua no tiene ninguna de las dos cosas.
+> **El plugin en C++ está descartado.** El proyecto del traductor verificó contra el
+> código fuente de DFHack que `overlay.OverlayWidget` existe: se puede pintar dentro del
+> juego **desde Lua**, en la misma carpeta donde ya vive `df_estado.lua`. Un plugin en
+> C++ ataría a compilar y se rompería en cada actualización; esto no.
+
+**5 · Confirmar en la build lo que se leyó en el fuente** *(el subcomando `ui`, ya escrito)*
+Con el patrón de `enums`: no suponer, **preguntar a la build**. Sondea las funciones de
+`dfhack.gui` (incluidas `getCurFocus`, `getSelectedUnit`, `getWidget`), los módulos
+requeribles (`plugins.overlay`, `plugins.eventful`, `repeat-util`), los colores del
+anuncio, el estado de `world.status.reports`, y el **ida y vuelta CP437** de los quince
+caracteres del español.
 
 **6 · Petición explícita: preguntar a un enano concreto cuando quieras**
 La mejor de las ideas de interfaz, y no por la interfaz: por la **economía**. Hoy el
@@ -57,7 +60,36 @@ sistema adivina qué te interesa, y toda la maquinaria de pesos, frenos y ventan
 para eso. Si lo pides tú, el contexto lo aportas al preguntar y los tres problemas del
 panel se resuelven a la vez. Efecto secundario valioso: **hace barato probar la calidad
 del texto**, que hoy obliga a esperar a que pase algo.
-Primera versión por línea de comandos; el botón dentro del juego depende de la 5.
+
+*Replanteada:* no hace falta escribir un id en una consola. DFHack ata una tecla a una
+pantalla concreta por su *focus string*, y `getSelectedUnit(true)` dice a quién tiene
+abierto el jugador:
+
+```
+keybinding add Ctrl-P@dwarfmode/ViewSheets/UNIT df_estado pensar
+```
+
+Abres la ficha de un enano, pulsas la tecla, habla **ese**.
+La versión por consola (`hablar id=N`) ya está hecha y vale de banco de pruebas.
+
+**14 · La prosa de la ficha en el prompt** *(cuelga de la 6)*
+`view_sheets` guarda el texto que **DF ya ha escrito** sobre la unidad: descripción
+física, párrafos de personalidad y pensamientos **en prosa**. Es la fuente mejor anclada
+que puede tener un prompt, y mucho mejor que nuestro cóctel de enums.
+Solo se rellena tras abrir la pestaña, y no hay API que la genere — el script `markdown`
+la consigue **simulando clics con coordenadas fijas** y su autor avisa de que se
+romperán. Para el vigía automático queda descartado; para la petición explícita es
+**gratis**, porque el jugador ya está en esa pantalla. Quitar o proteger el marcado
+interno: `[B]`, `[R]`, `[P]`, `[C:r:g:b]`.
+
+**15 · Medir `world.status.reports` como fuente de sucesos**
+Cada anuncio y cada línea de combate está ahí con `text`, `color`, `id`, `year`, `time`
+y `pos`, y `eventful.onReport(id)` avisa de los nuevos. Nosotros **deducimos** que
+alguien ha muerto comparando dos sondeos; DF lo tiene escrito, en prosa, fechado, con la
+posición y **con la causa**, que hoy no tenemos. Drenarlo es barato: último `id` visto y
+pedir los posteriores. Antes de meterlo en el bucle, medir cuántos genera una fortaleza
+por vuelta. No sustituye a comparar sondeos —emociones y estrés no se anuncian—, lo
+complementa para muertes y combate.
 
 **7 · Separar los canales**
 
