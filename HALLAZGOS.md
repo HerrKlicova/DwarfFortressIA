@@ -1469,9 +1469,10 @@ el dato**: era exactamente una de las tiradas de moneda que el hallazgo denuncia
 Usé la salida del modelo como evidencia de un hecho del mundo, en la misma página donde
 estaba explicando que no se puede hacer eso.
 
-Con el sexo ya extraído de DF, la tirada de comprobación dice `Eres HOMBRE` para Tirist y
-`(spouse, mujer)` para Tosid — **al revés de lo que yo había afirmado**. Cuál de los dos
-es cierto lo dice la ficha del enano en el juego, no una narración; queda por mirar.
+**Resuelto, y yo estaba equivocado.** La tirada dice `via: pronoun_type=he` y la ficha del
+enano en el juego dice hombre. Dos fuentes independientes, ninguna de ellas un LLM, y las
+dos coinciden: **Tirist Atírshis es hombre**. Lo que yo había dado por hecho salía de una
+frase generada sin el dato.
 
 > La regla 1 —cada afirmación con su ancla— se aplica a lo que escribimos nosotros
 > exactamente igual que a lo que escribe el modelo. Es el segundo defecto de esta ronda
@@ -1504,6 +1505,40 @@ real de cada muerte. Cuando esa fuente entre, el hueco desaparece.
 una entrada por cada vez que ocurre algo. Ahora se deduplica por (tipo, causa) quedándose
 con la más reciente, y las entradas con un campo a `-1` mandan cadena vacía en vez de
 `anything` o `none`.
+
+## Las captions de DF vienen a medias, y el modelo las completa
+
+Con el género ya resuelto, la misma tirada dejó ver otra cosa:
+
+```
+Lo que has sentido ultimamente: ...; loneliness after varying; uneasiness after varying; ...
+```
+
+Y la respuesta:
+
+> *"...esta soledad me pesa un poco después de **tanto variar de un lado a otro**."*
+
+`after varying` no significa nada por sí sola. Es una caption **incompleta**, y DF la
+completa con el campo `subthought` de la emoción — un campo que estábamos tirando.
+
+Es el mismo mecanismo que la muerte inventada en las minas, con otra cara: **un hueco en
+el prompt no se queda vacío, se rellena**. Y esta vez el hueco no venía de un dato que
+falta, sino de un dato que llega partido por la mitad.
+
+Dos slots de los seis eran fragmentos. Lo que se ha hecho, por ahora, es **medirlo**:
+
+```
+python df_llm.py emociones id=311
+```
+
+devuelve la fila cruda de cada emoción —tipo, causa, `subthought`, la caption tal cual la
+da DF sin quitarle los corchetes— y de paso pregunta si existe alguna función de DFHack
+que componga el texto entero. Con eso se decide si el arreglo es resolver `subthought`, o
+si hay que descartar las causas fragmentarias por la regla 2 (si un dato no se resuelve,
+se omite).
+
+No se ha tocado el prompt todavía: primero ver qué da DF, luego arreglar. Es la tercera
+vez en esta ronda que el orden importa.
 
 ## Cómo ejecutarlo
 

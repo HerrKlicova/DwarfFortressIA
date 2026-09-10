@@ -16,6 +16,8 @@ corre en la misma maquina (Player2) y devuelve la respuesta al log de anuncios.
   python df_llm.py medir [n]       n llamadas al LLM con el mismo prompt: mediana y rango
   python df_llm.py enums           que enums traen texto legible de DF
   python df_llm.py ui              que ofrece la interfaz de DFHack en esta build
+  python df_llm.py emociones id=272
+                                   la fila cruda de cada emocion (diagnostico)
 
 Requiere df_estado.lua en <Dwarf Fortress>/dfhack-config/scripts/.
 No tiene dependencias: solo biblioteca estandar.
@@ -738,6 +740,33 @@ def orden_hablar(df, args):
             print("    anunciado en %d linea(s) del log" % r.get("lineas", 0))
 
 
+def orden_emociones(df, args):
+    """La fila CRUDA de cada emocion de un enano.
+
+    Existe porque en el prompt salio 'loneliness after varying', una caption a
+    medias, y el modelo la completo por su cuenta: "esta soledad me pesa
+    despues de tanto variar de un lado a otro". Antes de arreglar nada hay que
+    ver que da DF de verdad."""
+    ids = [a.split("=", 1)[1] for a in args if a.startswith("id=")]
+    if not ids:
+        print("uso: python df_llm.py emociones id=272")
+        return
+    d = df._json("emociones", "id=%s" % int(ids[0]))
+    print("%s (id %s)" % (d.get("nombre"), d.get("id")))
+    print("\n  funciones que compondrian el texto entero:")
+    for f in d.get("render", []):
+        print("    [%s] %s (%s)"
+              % ("SI" if f.get("tipo") == "function" else "no", f["n"], f.get("tipo")))
+    print("\n  %-3s %-20s %-26s %-6s %s"
+          % ("i", "emocion", "causa", "sub", "caption de DF"))
+    for f in d.get("filas", []):
+        print("  %-3s %-20s %-26s %-6s %r"
+              % (f.get("i"), f.get("tipo"), f.get("causa"), f.get("sub_n"), f.get("cap")))
+    print("\n  %d filas. En las captions cortadas ('after varying'), mirar si sub_n vale"
+          % len(d.get("filas", [])))
+    print("  algo distinto de -1: entonces el complemento existe y solo hay que resolverlo.")
+
+
 def orden_ui(df, _args):
     """Que ofrece la interfaz de DFHack en ESTA build. No supone: pregunta.
 
@@ -810,7 +839,8 @@ def orden_medir(df, args):
 
 
 ORDENES = {"estado": orden_estado, "listar": orden_listar, "hablar": orden_hablar,
-           "enums": orden_enums, "medir": orden_medir, "ui": orden_ui}
+           "enums": orden_enums, "medir": orden_medir, "ui": orden_ui,
+           "emociones": orden_emociones}
 
 
 def main(argv):

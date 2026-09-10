@@ -303,6 +303,12 @@ local function enano_tabla(u, detalle, max_pens)
             if tipo_e >= 0 or causa_e >= 0 then
                 emos[#emos + 1] = {
                     tipo = tipo_e, causa = causa_e,
+                    -- El complemento de la causa. Las captions de
+                    -- unit_thought_type vienen a medias ('after varying') y DF
+                    -- las completa con esto. Sin el, el hueco lo rellena el
+                    -- modelo: 'despues de tanto variar de un lado a otro'.
+                    sub = math.floor(try(function() return m.subthought end, -1)),
+                    sev = math.floor(try(function() return m.severity end, -1)),
                     a = math.floor(try(function() return m.year end, -1)),
                     t = math.floor(try(function() return m.year_tick end, -1)),
                     f = math.floor(try(function() return m.strength end, 0)),
@@ -336,6 +342,7 @@ local function enano_tabla(u, detalle, max_pens)
                     fuerza      = m.f,
                     a           = m.a,
                     t           = m.t,
+                    sub         = m.sub,
                 }
             end
         end
@@ -635,4 +642,43 @@ if sub == 'ui' then
     return
 end
 
-fallo('uso: df_estado estado | enums | ui | unidad id= | enanos [n=] [desde=] [id=] [detalle=] [pensamientos=] | anuncio <texto>')
+-- ---------------------------------------------------------------- emociones
+-- Diagnostico: la fila CRUDA de cada emocion, antes de tocar nada. Existe
+-- porque en el prompt salio 'loneliness after varying' -- una caption a medias
+-- que el modelo completo por su cuenta. Para arreglarlo hay que ver primero que
+-- da DF de verdad, no suponerlo.
+if sub == 'emociones' then
+    local id = math.floor(tonumber(opt.id) or -1)
+    local u = try(function() return df.unit.find(id) end, nil)
+    if not u then fallo('no existe la unidad ' .. id); return end
+    local r = {id = id, nombre = dfstr(nombre_de(u)), filas = {}, render = {}}
+
+    -- Alguna funcion que componga el texto entero del pensamiento? Se pregunta,
+    -- no se supone.
+    for _, n in ipairs({'getThoughtText', 'getThoughtDescription', 'getUnitThought'}) do
+        r.render[#r.render + 1] = {n = n,
+            tipo = try(function() return type(dfhack.units[n]) end, 'ausente')}
+    end
+
+    cada(try(function() return u.status.current_soul.personality.emotions end, nil),
+        function(m, i)
+            local tp = math.floor(try(function() return m.type end, -1))
+            local th = math.floor(try(function() return m.thought end, -1))
+            local sb = math.floor(try(function() return m.subthought end, -1))
+            r.filas[#r.filas + 1] = {
+                i = i,
+                tipo = enum('emotion_type', tp), tipo_n = tp,
+                causa = enum('unit_thought_type', th), causa_n = th,
+                -- La caption TAL CUAL la da DF, sin quitarle los corchetes.
+                cap = try(function()
+                    return df.unit_thought_type.attrs[th].caption end, ''),
+                sub_n = sb,
+                a = math.floor(try(function() return m.year end, -1)),
+                t = math.floor(try(function() return m.year_tick end, -1)),
+            }
+        end)
+    responder(r)
+    return
+end
+
+fallo('uso: df_estado estado | enums | ui | emociones id= | unidad id= | enanos [n=] [desde=] [id=] [detalle=] [pensamientos=] | anuncio <texto>')

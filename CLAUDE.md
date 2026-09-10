@@ -210,6 +210,11 @@ el fallo está ahí.
 - **Las captions de DF están en inglés y en tercera persona** (`pleasure near his own
   quality building`) y traen huecos entre corchetes. Hay que decirle al modelo que son un
   apunte del juego y que no las traduzca literalmente.
+  **Y algunas vienen a medias**: `after varying` no significa nada por sí sola. DF la
+  completa con el campo `subthought` de la emoción, que hasta ahora se tiraba. Sin él,
+  el hueco lo rellena el modelo — *"esta soledad me pesa después de tanto variar de un
+  lado a otro"* salió de ahí. Diagnóstico: `df_llm.py emociones id=N` enseña la fila
+  cruda con `subthought` y la caption sin tocar.
 - **El `desde=` de `enanos` da la vuelta, no se acaba.** El índice se calcula con
   `((desde + k) % #pool) + 1`, así que pedir 20 sobre una lista de 5 devuelve 20
   repitiendo. Cualquier paginación que espere una página corta para saber que ha
@@ -251,10 +256,13 @@ el fallo está ahí.
   nombra a sí mismo**: devuelve `she` o `he`, no un 0 y un 1 que haya que mapear de
   memoria. El camino usado va en `sexo_via` para poder verlo desde fuera, y cuando hay que
   suponer algo, la cadena lo dice.
+  **Verificado de punta a punta**: `via: pronoun_type=he` para Tirist Atírshis, y la ficha
+  del enano en el juego dice hombre. Las dos puntas coinciden y ninguna pasa por el LLM.
 - **No usar prosa generada como si fuera un dato.** Al documentar lo anterior escribí
   *"Tirist es mujer"* — y mi única fuente era **una frase que el propio modelo había
   escrito sin tener el dato**. Es circular: se toma la moneda del modelo por evidencia y
-  se convierte en un hecho del proyecto. Un hecho sobre el mundo del juego solo vale si
+  se convierte en un hecho del proyecto. **Y era falso**: DF y la ficha del juego dicen
+  que es hombre. Un hecho sobre el mundo del juego solo vale si
   sale del estado de DF o de la pantalla del juego.
   > La regla 1 de la doctrina —cada afirmación con su ancla— **también se aplica a lo que
   > escribimos nosotros**, no solo a lo que escribe el modelo.
