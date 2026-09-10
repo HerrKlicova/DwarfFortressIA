@@ -10,10 +10,17 @@
 --   df_estado estado
 --     -> {ok, mundo, mapa, pausa, frame, n_ciudadanos}
 --   df_estado enanos [n=5] [desde=0] [detalle=basico|completo] [pensamientos=8] [adultos=1]
+--   df_estado enanos id=<unit_id> [detalle=completo] [pensamientos=8]
+--     -> UN enano concreto, resuelto por df.unit.find(). NO pasa por getCitizens(),
+--        asi que tambien encuentra a los muertos, locos y ausentes -- que es
+--        justo el caso de los sucesos de mas peso.
 --     -> {ok, ...estado..., enanos:[{id,nombre,profesion,edad,adulto,estres,
 --                                    rasgos,pensamientos,relaciones,preferencias,habilidades}]}
 --   df_estado anuncio <texto>
 --     -> {ok, lineas}     (parte el texto por \n: showAnnouncement ignora los saltos)
+--   df_estado ui
+--     -> {ok, gui:[...], modulos:[...]}  que ofrece la interfaz en ESTA build.
+--        No supone nada: pregunta. Mismo patron que 'enums'.
 --
 -- Siempre responde UNA sola linea, con el prefijo JSON| para poder distinguirla
 -- de cualquier aviso que DFHack imprima por su cuenta.
@@ -265,6 +272,11 @@ local function enano_tabla(u, detalle, max_pens)
                     tipo = enum('unit_relationship_type', i),
                     txt = enum_txt('unit_relationship_type', i),
                     quien = nombre,
+                    -- El unit_id del OTRO. Antes se tiraba y solo quedaba el
+                    -- nombre; los nombres se repiten en DF, asi que sin esto no
+                    -- se puede comprobar si el otro sigue vivo, ni pedir su
+                    -- expediente, ni escribir una memoria compartida.
+                    id = math.floor(id),
                 }
             end
         end
@@ -282,6 +294,31 @@ end
 -- ---------------------------------------------------------------- enanos
 if sub == 'enanos' then
     if not hay_partida() then fallo('sin partida cargada'); return end
+
+    -- UN enano concreto, por id. Va ANTES de getCitizens() a proposito:
+    -- getCitizens() solo devuelve vivos y cuerdos, y los sucesos de mas peso
+    -- (muerte, locura, desaparicion) se detectan precisamente porque el enano
+    -- ya no esta ahi. Buscarlo en esa lista era buscarlo donde no puede estar.
+    local solo = math.floor(tonumber(opt.id) or -1)
+    if solo >= 0 then
+        local t0u = os.clock()
+        local r = estado_base()
+        r.total_pool = 1
+        r.enanos = {}
+        local u = try(function() return df.unit.find(solo) end, nil)
+        if u then
+            if (opt.detalle or 'basico') == 'sonda' then
+                r.enanos[1] = enano_sonda(u)
+            else
+                r.enanos[1] = enano_tabla(u, opt.detalle or 'completo',
+                                          math.floor(tonumber(opt.pensamientos) or 8))
+            end
+        end
+        r.lua_us = math.floor((os.clock() - t0u) * 1000000)
+        responder(r)
+        return
+    end
+
     local cs = try(function() return dfhack.units.getCitizens() end, nil)
     if not cs or #cs == 0 then fallo('sin ciudadanos en la fortaleza'); return end
 
@@ -402,4 +439,49 @@ if sub == 'enums' then
     return
 end
 
-fallo('uso: df_estado estado | enums | unidad id= | enanos [n=] [desde=] [detalle=] [pensamientos=] | anuncio <texto>')
+-- ---------------------------------------------------------------- ui
+-- Que ofrece la interfaz de DFHack en ESTA build. Mismo patron que 'enums': no
+-- se supone nada, se le pregunta a la instalacion. Existe porque el panel de
+-- anuncios es el unico canal que tenemos y no tiene identidad, ni fecha, ni
+-- sitio: hace falta saber que alternativas hay ANTES de decidir si se abre un
+-- plugin en C++ (que ata a compilar y se rompe en cada actualizacion) o basta
+-- con un overlay en Lua (que no tiene ninguna de las dos cosas).
+if sub == 'ui' then
+    local r = {gui = {}, modulos = {}, colores = {}}
+
+    -- Funciones candidatas. Que esten en esta lista NO significa que existan:
+    -- significa que queremos saberlo. La respuesta la da 'tipo'.
+    local candidatas = {
+        'showAnnouncement', 'showZoomAnnouncement', 'showPopupAnnouncement',
+        'showAutoAnnouncement', 'makeAnnouncement', 'writeToGamelog',
+        'revealInDwarfmodeMap', 'refreshSidebar', 'getSelectedUnit',
+        'getCurViewscreen', 'getDFViewscreen', 'pauseRecenter',
+    }
+    for _, nombre in ipairs(candidatas) do
+        local tipo = try(function() return type(dfhack.gui[nombre]) end, 'ausente')
+        r.gui[#r.gui + 1] = {n = nombre, tipo = tipo}
+    end
+
+    -- Modulos que habria que requerir para pintar encima de la interfaz.
+    for _, nombre in ipairs({'plugins.overlay', 'gui.widgets', 'gui.dwarfmode',
+                             'gui.textures', 'gui.script'}) do
+        local ok = pcall(require, nombre)
+        r.modulos[#r.modulos + 1] = {n = nombre, hay = ok and true or false}
+    end
+
+    r.screen = try(function() return type(dfhack.screen) end, 'ausente')
+    r.textures = try(function() return type(dfhack.textures) end, 'ausente')
+
+    -- Colores del anuncio. Hoy TODAS las lineas del LLM salen en COLOR_YELLOW,
+    -- las mismas que los avisos del propio juego.
+    for _, c in ipairs({'COLOR_YELLOW', 'COLOR_LIGHTCYAN', 'COLOR_LIGHTMAGENTA',
+                        'COLOR_LIGHTGREEN', 'COLOR_WHITE', 'COLOR_GREY'}) do
+        local v = try(function() return _ENV[c] or _G[c] end, nil)
+        r.colores[#r.colores + 1] = {n = c, v = (type(v) == 'number') and v or -1}
+    end
+
+    responder(r)
+    return
+end
+
+fallo('uso: df_estado estado | enums | ui | unidad id= | enanos [n=] [desde=] [id=] [detalle=] [pensamientos=] | anuncio <texto>')

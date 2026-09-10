@@ -7,10 +7,15 @@ corre en la misma maquina (Player2) y devuelve la respuesta al log de anuncios.
 
   python df_llm.py estado          estado del juego, sin tocar el LLM
   python df_llm.py listar [n]      n enanos, resumen por linea
-  python df_llm.py hablar [n]      elige un enano, le hace hablar y lo anuncia
-  python df_llm.py hablar 3 --seco igual, pero sin escribir en el juego
+  python df_llm.py hablar [n]      elige un enano al azar, le hace hablar y lo anuncia
+  python df_llm.py hablar id=272   hace hablar a ESE enano (peticion explicita)
+  python df_llm.py hablar id=272 --prompt --seco
+                                   imprime el prompt ENTERO y no toca el juego
+  python df_llm.py hablar id=272 --epitafio
+                                   lo que se anunciaria si acabara de morir
   python df_llm.py medir [n]       n llamadas al LLM con el mismo prompt: mediana y rango
   python df_llm.py enums           que enums traen texto legible de DF
+  python df_llm.py ui              que ofrece la interfaz de DFHack en esta build
 
 Requiere df_estado.lua en <Dwarf Fortress>/dfhack-config/scripts/.
 No tiene dependencias: solo biblioteca estandar.
@@ -271,6 +276,24 @@ class DFHack(object):
         for e in d.get("enanos", []):
             _normalizar(e)
         return d
+
+    def uno(self, id_, detalle="completo", pensamientos=None):
+        """El expediente de UN enano, por id. Devuelve None si no existe.
+
+        Una peticion, un enano. Antes esto se hacia paginando por getCitizens()
+        de 20 en 20, y para los sucesos de mas peso -- muerte, locura,
+        desaparicion -- no podia funcionar nunca: esos se detectan justamente
+        porque el enano ya NO esta en getCitizens(). Eran 11 peticiones y
+        ~1,1 MB de Lua para devolver None, y el epitafio acababa construyendose
+        con los datos de la sonda, que no traen ni oficio, ni edad, ni
+        relaciones, ni habilidades."""
+        # TOPE_PENSAMIENTOS se define mas abajo en el fichero: no puede ser el
+        # valor por defecto del argumento, que se evalua al importar.
+        d = self._json("enanos", "id=%d" % int(id_), "detalle=%s" % detalle,
+                       "pensamientos=%d" % (TOPE_PENSAMIENTOS if pensamientos is None
+                                            else pensamientos))
+        lista = d.get("enanos") or []
+        return _normalizar(lista[0]) if lista else None
 
     def unidad(self, id_):
         """Que fue de una unidad que ya no esta entre los ciudadanos."""
@@ -590,25 +613,86 @@ def orden_listar(df, args):
 
 
 def orden_hablar(df, args):
-    seco = "--seco" in args
-    args = [a for a in args if not a.startswith("--")]
-    cuantos = int(args[0]) if args and args[0].isdigit() else 1
+    """Peticion explicita: hacer hablar a quien tu digas, cuando tu quieras.
 
-    d = df.enanos(n=cuantos, detalle="completo", pensamientos=TOPE_PENSAMIENTOS,
-                  desde=random.randint(0, 9999))
+      hablar              un enano al azar
+      hablar 3            tres al azar
+      hablar id=272       ESE enano
+      hablar id=272 --epitafio   como si acabara de morir (tercera persona)
+      --seco              no anunciarlo en el juego
+      --prompt            imprimir el prompt ENTERO antes de la respuesta
+
+    El id= invierte el control: en vez de que el servicio adivine que te
+    interesa, lo pides tu. Y hace barato probar la calidad del texto, que hasta
+    ahora obligaba a esperar a que pasara algo en la partida.
+
+    --prompt existe porque la prosa correcta oculta los prompts vacios: el
+    epitafio llevaba tiempo construyendose sin oficio, sin edad, sin relaciones
+    y sin habilidades, y las respuestas seguian sonando bien."""
+    seco = "--seco" in args
+    ver_prompt = "--prompt" in args
+    epitafio = "--epitafio" in args
+    ids = [a.split("=", 1)[1] for a in args if a.startswith("id=")]
+    args = [a for a in args if not a.startswith("--") and not a.startswith("id=")]
+
+    if ids:
+        enanos = []
+        for crudo in ids:
+            enano = df.uno(int(crudo))
+            if enano is None:
+                print("  no existe ninguna unidad con id %s" % crudo)
+                continue
+            enanos.append(enano)
+        if not enanos:
+            return
+    else:
+        cuantos = int(args[0]) if args and args[0].isdigit() else 1
+        enanos = df.enanos(n=cuantos, detalle="completo",
+                           pensamientos=TOPE_PENSAMIENTOS,
+                           desde=random.randint(0, 9999))["enanos"]
+
     p2 = Player2()
     print("Player2 en 127.0.0.1:%d -> %s" % (p2.port, p2.salud()))
 
-    for enano in d["enanos"]:
-        prompt = construir_prompt(enano)
+    for enano in enanos:
+        if epitafio:
+            prompt = construir_epitafio(enano, "ha muerto")
+        else:
+            prompt = construir_prompt(enano)
         print("\n--- %s, %s, %s anos (%d caracteres de prompt)"
-              % (enano["nombre"], enano["profesion"], enano["edad"], len(prompt)))
+              % (enano.get("nombre"), enano.get("profesion", "?"),
+                 enano.get("edad", "?"), len(prompt)))
+        if ver_prompt:
+            for linea in prompt.splitlines():
+                print("    | " + linea)
         t0 = time.perf_counter()
         texto = p2.completar([{"role": "user", "content": prompt}])
         print("    (%.2f s) %s" % (time.perf_counter() - t0, texto))
+        for origen, crudo in FUGAS:
+            print("    [fuga] %s llego sin traducir: %r" % (origen, crudo))
+        del FUGAS[:]
         if not seco:
-            r = df.anunciar("%s: %s" % (enano["nombre"], texto))
+            r = df.anunciar("%s: %s" % (enano.get("nombre"), texto))
             print("    anunciado en %d linea(s) del log" % r.get("lineas", 0))
+
+
+def orden_ui(df, _args):
+    """Que ofrece la interfaz de DFHack en ESTA build. No supone: pregunta.
+
+    Decide si hace falta un plugin en C++ (que ata a compilar y se rompe en
+    cada actualizacion) o basta con un overlay en Lua."""
+    d = df._json("ui")
+    print("dfhack.gui:")
+    for f in d.get("gui", []):
+        marca = "SI" if f.get("tipo") == "function" else "no"
+        print("  [%s] %-24s %s" % (marca, f["n"], f.get("tipo")))
+    print("\nmodulos que se pueden requerir:")
+    for m in d.get("modulos", []):
+        print("  [%s] %s" % ("SI" if m.get("hay") else "no", m["n"]))
+    print("\ndfhack.screen: %s   dfhack.textures: %s"
+          % (d.get("screen"), d.get("textures")))
+    print("\ncolores del anuncio (hoy todo sale en COLOR_YELLOW):")
+    print("  " + ", ".join("%s=%s" % (c["n"], c["v"]) for c in d.get("colores", [])))
 
 
 def orden_enums(df, _args):
@@ -650,7 +734,7 @@ def orden_medir(df, args):
 
 
 ORDENES = {"estado": orden_estado, "listar": orden_listar, "hablar": orden_hablar,
-           "enums": orden_enums, "medir": orden_medir}
+           "enums": orden_enums, "medir": orden_medir, "ui": orden_ui}
 
 
 def main(argv):

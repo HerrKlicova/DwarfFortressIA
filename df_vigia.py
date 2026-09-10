@@ -220,16 +220,18 @@ class Vigia(object):
     def _hablar(self, evento, estado):
         clave = evento["clave"]
         # El expediente completo, solo de este: 344 KB para los 64 no compensa.
-        d = self.df.enanos(n=1, detalle="completo",
-                           pensamientos=df_llm.TOPE_PENSAMIENTOS, adultos=False)
-        enano = None
-        for cand in d.get("enanos", []):
-            if cand.get("id") == clave:
-                enano = cand
-        if enano is None:
-            enano = self._buscar(clave)
+        # Se pide POR ID, que no pasa por getCitizens(). Antes se paginaba esa
+        # lista de 20 en 20, y para muerte, locura y desaparicion no podia
+        # funcionar nunca: esos sucesos se detectan precisamente porque el
+        # enano ya no esta ahi. Se gastaban 11 peticiones y ~1,1 MB de Lua para
+        # devolver None, y el epitafio salia con los datos de la sonda, que no
+        # traen oficio, ni edad, ni relaciones, ni habilidades -- los cuatro
+        # campos que usa construir_epitafio().
+        enano = self.df.uno(clave)
         if enano is None:
             enano = evento["enano"]            # se tira con lo que dio la sonda
+            print("  [aviso] id %s no resuelto: el prompt ira con los datos de la sonda"
+                  % clave)
 
         huella = df_memoria.huella_de(enano)
 
@@ -297,18 +299,6 @@ class Vigia(object):
                 print("       anunciado en %d linea(s)" % r.get("lineas", 0))
             except (df_llm.SinDFHack, df_llm.SinPartida) as e:
                 print("       no se pudo anunciar: %s" % e)
-
-    def _buscar(self, clave):
-        """El expediente completo del enano concreto, paginando hasta dar con el."""
-        for desde in range(0, 200, 20):
-            d = self.df.enanos(n=20, desde=desde, detalle="completo",
-                               pensamientos=df_llm.TOPE_PENSAMIENTOS, adultos=False)
-            for cand in d.get("enanos", []):
-                if cand.get("id") == clave:
-                    return cand
-            if len(d.get("enanos", [])) < 20:
-                break
-        return None
 
     # ---------------------------------------------------------- bucle
     def vuelta(self):
