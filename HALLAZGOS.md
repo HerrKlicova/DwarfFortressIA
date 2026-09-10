@@ -2074,6 +2074,64 @@ repetición, no veinte sucesos.
 manda cadena vacía y el detalle empezaba por un espacio — *" saw somebody's dead body"* —
 que acababa así en la crónica y en la memoria.
 
+## La sonda arreglada, confirmada contra el juego ✅
+
+Crónica del año 106, siete narraciones. Los tres controles pasan y hay una confirmación
+que se ve sin buscarla:
+
+```
+[ano 106, mes 7, dia 3] Udil Idkulet -- satisfaction upon improving SKILL AT brewing
+  "Por fin noto que mis manos entienden mejor el arte de la cerveza"
+```
+
+Ese `skill at brewing` viene de la **sonda**, no del expediente. Ayer habría dicho
+`upon improving brewing` y el modelo habría escrito *"mejoré esa cerveza"*, igual que con
+la planta. La corrección viaja de punta a punta: Lua → sonda → detalle del suceso →
+prompt → texto → crónica.
+
+| Control | Resultado |
+|---|---|
+| `after varying` / `due to syndrome` en algún detalle | **ninguno** |
+| `anything none` | **ninguno** |
+| Detalle que empieza por espacio | **ninguno** |
+| Huecos rellenados | `skill at brewing`, `a tastefully arranged chair` ✅ |
+
+Y una prueba indirecta del descarte: la primera entrada es **`euphoria` a secas**, sin
+causa. Eso es `causa_legible()` devolviendo `nil` para una caption que quedaba colgando
+—casi seguro `due to [syndrome]`— y el detalle quedándose solo con la emoción. Antes ahí
+ponía `EUPHORIA Syndrome`, que es de donde salía el famoso *"¡Euphoria! ¡Qué alegría!"*.
+
+El género también aguanta en producción: Shorast dice *"sigo **agobiada**"* y *"me ha
+pillado **desprevenida**"*; Tirist, *"me siento **satisfecho**"*.
+
+### No ha salido ningún `emocion_fuerte`, y es lo esperado
+
+Es un detector de **cambio**: solo dispara cuando la emoción más fuerte de un enano pasa a
+ser **otra**. La más fuerte de alguien suele ser estable durante mucho tiempo, así que en
+tres minutos de partida tranquila no tiene por qué aparecer ninguno.
+
+El momento en que sí disparará es exactamente el que nos interesa: cuando muere la pareja
+de alguien, `LoveSeparated` llega **nueva y fuerte** a la vez, así que salen los dos
+sucesos y el de peso 45 gana la vuelta.
+
+**Eso no se puede confirmar sin una muerte.** Queda como la prueba pendiente.
+
+### Lo que ya funciona sin haberlo programado
+
+```
+[ano 106, mes 7, dia 4] Tirist Atírshis -- satisfaction at work
+  "...aunque echo de menos a Tosid con esa tristeza que no se marcha del todo."
+```
+
+El suceso era **la satisfacción del trabajo**. Lo de Tosid sale del bloque de contexto
+—`Personas de tu vida` y la lista de emociones—, no del disparador. O sea que **nombrar a
+la pareja ya funciona** y no hace falta código nuevo para eso.
+
+Lo que hay que vigilar en el test de muerte es lo contrario: un enano con varias
+relaciones (cónyuge, madre, hijo) y un `at being separated from a loved one` que no dice
+**cuál**. Ahí el modelo puede atribuirlo a la persona equivocada — una costura, con la
+misma forma que las anteriores. No se ataja por adelantado: se mide primero.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a
