@@ -128,7 +128,11 @@ class Vigia(object):
                 eventos.append(self._evento("estres", act, self._que_animo(cv, ca)))
 
             if act.get("rel") != viejo.get("rel"):
-                eventos.append(self._evento("relacion", act, self._que_relacion(viejo, act)))
+                ganados, perdidos = self._cambio_relacion(viejo, act)
+                ev = self._evento("relacion", act,
+                                  self._que_relacion(ganados, perdidos))
+                ev["ganados"], ev["perdidos"] = ganados, perdidos
+                eventos.append(ev)
 
         for cid, viejo in a.items():
             if cid not in b:
@@ -148,17 +152,46 @@ class Vigia(object):
                 else "te sientes algo peor que hace un rato")
 
     @staticmethod
-    def _que_relacion(viejo, act):
-        """'rel' son los relationship_ids unidos por comas. No se puede saber
-        QUIEN es sin pedir el detalle, pero si cuantos vinculos hay, que ya
-        distingue ganar a alguien de perderlo."""
-        def vivos(cad):
-            return sum(1 for x in (cad or "").split(",") if x.strip().lstrip("-").isdigit()
-                       and int(x) >= 0)
-        a, b = vivos(viejo.get("rel")), vivos(act.get("rel"))
-        if b > a:
+    def _huecos_rel(cad):
+        """'rel' son los relationship_ids unidos por comas, EN ORDEN: la
+        posicion i es el vinculo de tipo i (unit_relationship_type). Un -1
+        significa que ese hueco esta vacio."""
+        salida = []
+        for x in (cad or "").split(","):
+            x = x.strip()
+            try:
+                salida.append(int(x))
+            except ValueError:
+                salida.append(-1)
+        return salida
+
+    @classmethod
+    def _cambio_relacion(cls, viejo, act):
+        """Que ids concretos han entrado y salido. Antes solo se CONTABAN, y
+        por eso el suceso decia "alguien nuevo" -- y el enano acababa
+        narrando su propio desconocimiento: "no entiendo del todo lo que
+        significa". Un enano siempre sabe quien se ha vuelto importante."""
+        a, b = cls._huecos_rel(viejo.get("rel")), cls._huecos_rel(act.get("rel"))
+        ganados, perdidos = [], []
+        for i in range(max(len(a), len(b))):
+            antes = a[i] if i < len(a) else -1
+            ahora = b[i] if i < len(b) else -1
+            if antes == ahora:
+                continue
+            if ahora >= 0:
+                ganados.append(ahora)
+            if antes >= 0:
+                perdidos.append(antes)
+        return ganados, perdidos
+
+    @staticmethod
+    def _que_relacion(ganados, perdidos):
+        """El texto de respaldo, sin nombres. Solo se usa si luego no se puede
+        resolver quien es: los nombres se ponen en _hablar(), que es donde hay
+        expediente."""
+        if ganados and not perdidos:
             return "alguien nuevo ha pasado a ser importante en tu vida"
-        if b < a:
+        if perdidos and not ganados:
             return "has perdido a alguien importante de tu vida"
         return "una de tus relaciones ha cambiado"
 
@@ -265,6 +298,11 @@ class Vigia(object):
 
         huella = df_memoria.huella_de(enano)
 
+        # Con el expediente delante ya se puede decir QUIEN. Va aqui y no en
+        # detectar() porque es aqui donde hay relaciones con nombre.
+        if evento["tipo"] == "relacion":
+            self._nombrar_relacion(evento, enano)
+
         # Un muerto no narra su muerte. Sin esto, el difunto decia "se acabo,
         # todo se acabo" en primera persona y en presente.
         if evento["tipo"] in EN_TERCERA:
@@ -284,6 +322,46 @@ class Vigia(object):
                  % df_llm.legible(evento["detalle"], "evento.detalle", siempre_enum=True))
         prompt = df_llm.construir_prompt(enano, instruccion=instr, recuerdos=recuerdos)
         self._decir(evento, enano, huella, prompt, estado)
+
+    def _nombrar_relacion(self, evento, enano):
+        """Pone nombre al vinculo que ha cambiado, y apunta al OTRO como
+        participante.
+
+        El suceso decia "alguien nuevo ha pasado a ser importante en tu vida",
+        y el enano acababa narrando su propio desconocimiento: "no entiendo del
+        todo lo que significa". Un enano siempre sabe quien.
+
+        Si no se puede resolver el nombre, se deja el texto generico: un id
+        suelto en el prompt acaba convertido en personaje (fue el caso de
+        'unidad 338')."""
+        por_id = {r.get("id"): r for r in (enano.get("relaciones") or [])}
+        partes, otros = [], []
+
+        for oid in evento.get("ganados", []):
+            r = por_id.get(oid)
+            if r and r.get("quien"):
+                partes.append("%s (%s) ha pasado a ser importante en tu vida"
+                              % (r["quien"], r.get("txt") or r.get("tipo") or "?"))
+                otros.append(oid)
+
+        for oid in evento.get("perdidos", []):
+            # El que se ha ido ya NO esta en 'relaciones': hay que preguntar por
+            # el. df.unidad() lo encuentra aunque este muerto.
+            nombre = None
+            try:
+                u = self.df.unidad(oid)
+                if u.get("existe"):
+                    nombre = u.get("nombre")
+            except (df_llm.SinDFHack, df_llm.SinPartida):
+                nombre = None
+            if nombre:
+                partes.append("has perdido a %s de tu vida" % nombre)
+                otros.append(oid)
+
+        if partes:
+            evento["detalle"] = "; ".join(partes)
+        # Los dos implicados, para que la entrada de memoria sea compartida.
+        evento["participantes"] = [evento["clave"]] + otros
 
     def _decir(self, evento, enano, huella, prompt, estado):
         """Llama al LLM, anuncia, apunta en la cronica y en la memoria."""
@@ -321,8 +399,12 @@ class Vigia(object):
         print("  [%s] %s (%.2f s): %s"
               % (evento["tipo"], enano.get("nombre"), dt, Cronica._plano(texto)))
 
+        # 'participantes' lleva al otro cuando el suceso implica a dos. Es el
+        # gancho que df_memoria tiene puesto desde el principio para las
+        # interacciones: la misma entrada, en la ficha de cada uno.
         self.memoria.recordar(clave, huella, evento["tipo"], evento["detalle"],
-                              texto, cuando=cuando, participantes=[clave])
+                              texto, cuando=cuando,
+                              participantes=evento.get("participantes") or [clave])
         for d_ in self.memoria.descartes:
             print("  [memoria] descartado el historial de %s: era %r y ahora es %r"
                   % (d_["clave"], d_["antes"], d_["ahora"]))

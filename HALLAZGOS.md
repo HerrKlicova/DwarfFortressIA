@@ -2132,6 +2132,79 @@ relaciones (cónyuge, madre, hijo) y un `at being separated from a loved one` qu
 **cuál**. Ahí el modelo puede atribuirlo a la persona equivocada — una costura, con la
 misma forma que las anteriores. No se ataja por adelantado: se mide primero.
 
+## Tirada larga con 128 ciudadanos: cinco cosas confirmadas y un defecto
+
+40 vueltas, ~3,5 minutos, entre 18 y 73 sucesos por vuelta, diez narraciones.
+
+### Lo que queda demostrado en producción
+
+**`emocion_fuerte` dispara, y no es raro.** Cinco veces en 40 vueltas. La duda de si sería
+un evento casi inalcanzable queda respondida: en una fortaleza con gente, la emoción más
+fuerte de alguien cambia a menudo.
+
+**No haber rellenado `[somebody]` fue la decisión correcta.** Dos enanos narraron haber
+visto un cadáver, y ninguno inventó un nombre:
+
+> **Rîsen Olonemal** — *"**La muerte que vi** aún me revuelve por dentro. Siento un miedo
+> frío que se me pega a las costillas…"*
+>
+> **Ast Iridäs** — *"**La muerte de ese pobre alma** aún me pesa en el pecho."*
+
+Si hubiéramos rellenado ese hueco con la figura histórica que «resolvía», ahí habría un
+nombre — y muy probablemente el equivocado.
+
+**El epitafio, completo y sin inventar nada:**
+
+> *"Zasit Engiglikot, molinero de treinta años, **hijo de Domas Dodókgatiz**, ha muerto.
+> Era competente con el martillo, adecuado en el molido y novato con el escudo."*
+
+Oficio, edad, relación **con género** (*hijo de*), tres habilidades, y **ni una palabra
+sobre cómo murió**. Los dos defectos del epitafio —el vacío y la muerte inventada— cerrados
+a la vez, en el juego.
+
+**Los huecos de plantilla, en producción:** *"lo mucho que he mejorado **con las
+armaduras**"* (`skill at armor`), *"haber tenido que **dirigir una reunión oficial desde el
+dormitorio**"*, *"**la luz del sol** me irrita otra vez"*.
+
+**El género, en producción:** *"Estoy tan **tranquila** y feliz"*.
+
+### El defecto: un detalle vago da un enano confundido
+
+> **Mörul Larzulban** — *"Alguien nuevo se ha vuelto importante en mi vida y eso me
+> inquieta y me alegra al mismo tiempo, **aunque no entiendo del todo lo que significa**."*
+
+El detalle que le mandamos era *"alguien nuevo ha pasado a ser importante en tu vida"*.
+Vago **a propósito**, porque solo contábamos cuántos `relationship_ids` había.
+
+Y el modelo hizo lo único que podía: **reprodujo nuestra falta de información como si fuera
+un rasgo del personaje**. Un enano siempre sabe quién se ha vuelto importante para él.
+
+Es el reverso de la regla 2. No basta con no meter rellenos: **lo que se mete tiene que
+decir algo**, o el modelo llena el hueco hablando de su propia niebla.
+
+### El arreglo, y lo que trae de regalo
+
+`rel` es la lista de `relationship_ids` **en orden**: la posición *i* es el vínculo de tipo
+*i*. Comparando posición a posición sale **qué id** entró y cuál salió. Con el expediente
+delante se le pone nombre; al que se ha ido ya no está en `relaciones`, así que se pregunta
+por él con `df.unidad()`, que lo encuentra aunque esté muerto.
+
+```
+GANA        : Ast Iridas (friend) ha pasado a ser importante en tu vida
+PIERDE      : has perdido a Tosid Nishkesh de tu vida
+SIN RESOLVER: alguien nuevo ha pasado a ser importante en tu vida   ← se mantiene el generico
+```
+
+El regalo: ahora el suceso conoce **a los dos**, así que la entrada de memoria se guarda
+con `participantes: [311, 272]`. Es el gancho que `df_memoria` lleva puesto desde el primer
+día esperando a las interacciones, y se enchufa hoy sin escribir nada nuevo.
+
+### Un dato para la sesión larga
+
+Con 128 ciudadanos, el vigía narra **una vez cada 20 segundos, sin parar** — está saturando
+el `DESCANSO_GLOBAL`. En tres horas serían unas 540 narraciones. No es un fallo, pero es el
+número que dice que el reparto por canales (tarea 7) hace falta antes que después.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a

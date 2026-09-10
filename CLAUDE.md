@@ -368,6 +368,19 @@ el fallo está ahí.
   segundos a un enano le llega el duelo por su pareja y detrás una función de teatro,
   mirar solo la más reciente cuenta el teatro.
   > De poco sirve que el prompt sepa contar el duelo si quien decide no lo ve.
+- **Un detalle vago no da un texto vago: da un enano confundido.** El suceso de relación
+  decía *"alguien nuevo ha pasado a ser importante en tu vida"* —vago a propósito, porque
+  solo contábamos `relationship_ids`— y el enano narró: *"Alguien nuevo se ha vuelto
+  importante en mi vida […] **aunque no entiendo del todo lo que significa**"*.
+  El modelo reprodujo **nuestra** falta de información como si fuera un rasgo del
+  personaje. Un enano siempre sabe quién se ha vuelto importante para él.
+  `rel` es la lista de `relationship_ids` **en orden**: la posición *i* es el vínculo de
+  tipo *i*. Comparando posición a posición se sabe **qué id** entró o salió, y con el
+  expediente delante se le pone nombre. Si no se resuelve, se deja el texto genérico —un
+  id suelto en el prompt acaba convertido en personaje, que es lo que pasó con
+  `unidad 338`.
+  > Es el reverso de la regla 2: no basta con no meter rellenos; **lo que se mete tiene
+  > que decir algo**, o el modelo llena el hueco hablando de su propia niebla.
 - **La memoria se guarda por partida.** Los `unit_id` vuelven a empezar en cada mundo,
   así que sin separar por `dfhack.world.ReadWorldFolder()` el enano 272 de una fortaleza
   heredaría los recuerdos del 272 de otra.
