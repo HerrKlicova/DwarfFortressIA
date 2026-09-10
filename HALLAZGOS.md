@@ -1281,6 +1281,124 @@ vez de fiarse de una tabla.
 - **`luasocket` para que Lua llame fuera**: nuestro sondeo cuesta 5 ms y lo dirige Python.
   No hay motivo para invertir la dirección.
 
+## Primera tirada del `id=` y del sondeo de interfaz ✅ y un bug nuevo
+
+### El `id=` funciona
+
+```
+python df_llm.py hablar id=335 --prompt --seco
+--- Meng Melbilikud, chief medical dwarf, 29 anos (1275 caracteres de prompt)
+```
+
+Oficio, edad, rasgos y habilidades, todo resuelto en **una** petición. Y el epitafio:
+
+> *Meng Melbilikud, jefe médico de la fortaleza, ha muerto. Gran cultivador y talentoso
+> poeta y orador, su vida terminó a los veintinueve años.*
+
+Con `Se le daba bien: Growing (Great), Poetry (Talented), Speaking (Talented)` en el
+prompt — la línea que **antes no llegaba nunca**. Falta confirmar la de *"Dejaba atrás
+a:"*: Meng no tiene relaciones resueltas, así que hay que repetirlo con un enano casado.
+
+### Bug nuevo, visible en el propio prompt
+
+```
+Lo que has sentido ultimamente: anything none; anything none; anything none;
+                                anything none; anything none; anything none.
+```
+
+Seis. `anything` y `none` son las captions del valor `-1` de `emotion_type` y
+`unit_thought_type`: **entradas vacías que DF deja en la cola del vector** cuando poda las
+emociones viejas. `enano_tabla()` cogía las últimas N del vector, así que cogía justo esas.
+
+**Uno de los siete bloques del prompt ha sido ruido desde el principio.**
+
+Por qué no se vio: `enano_sonda()` **sí** elige por `(year, year_tick)`, así que el
+disparador del suceso llegaba correcto y la respuesta sonaba bien. Lo estropeado era el
+bloque de contexto, que nadie lee tan de cerca. Mismo patrón que el epitafio vacío: prosa
+buena tapando datos malos. Van seis.
+
+Corregido: ordenar por marca de tiempo, descartar las que tengan tipo **y** causa
+negativos, y devolver `emo_utiles` para que la próxima vez se vea en el JSON y no en el
+prompt. El lado Python pasa a coger las **primeras** N, no las últimas.
+
+### El sondeo de interfaz: todo verde
+
+| | |
+|---|---|
+| `plugins.overlay`, `plugins.eventful`, `repeat-util`, `gui.widgets` | **presentes** |
+| `showZoomAnnouncement`, `showPopupAnnouncement`, `makeAnnouncement` | **presentes** |
+| `getCurFocus`, `getFocusStrings`, `getSelectedUnit`, `getWidget` | **presentes** |
+| colores | `YELLOW=14 LIGHTCYAN=11 LIGHTMAGENTA=13 LIGHTGREEN=10 WHITE=15 GREY=7` |
+
+**El plugin en C++ queda descartado con medida, no con lectura de fuente.** Y aparece algo
+que no esperábamos: `showZoomAnnouncement` existe, así que un anuncio puede llevar
+posición y **la cámara salta al enano al pulsarlo**. Eso resuelve el «dónde» del panel sin
+overlay ninguno.
+
+### `world.status.reports`: 2004, y casi todo es ruido
+
+El último anotado: `Make yarn trousers (6) has been completed.`
+
+Está **dominado por finalización de trabajos**. Como fuente de sucesos sigue valiendo —las
+muertes y el combate están ahí, con causa y posición, que hoy no tenemos— pero **hay que
+filtrar por tipo**, no drenarlo entero. La duda de si era un chorro queda respondida: lo es.
+
+### CP437 confirmado en la build
+
+Sobreviven 11 de 15. `Á Í Ó Ú` vuelven como `?`. Los demás (`á é í ó ú ñ Ñ ü É ¿ ¡`),
+intactos. El filtro que degrada a `A I O U` se queda.
+
+## La fortaleza SÍ reacciona a las muertes (sin habérselo programado)
+
+La crónica del año 105 responde la pregunta que llevaba abierta desde el primer test de
+muerte, y la respuesta tiene dos mitades.
+
+**Nish Dedukudib muere el mes 8, día 16.** Lo que pasa después, sin que nada del código lo
+busque:
+
+> **día 20 · Oddom Stonoslan** — *"...y por un momento hasta **el horror de ver morir a
+> alguien** se aleja un poco."*
+
+> **día 20 · Cerol Urdimatöl** — *"...por un momento **olvido el horror que vi hace poco**
+> y el agobio que me aplasta cada día."*
+
+> **día 27 · Tun Ducimlòr** — *"...aunque la fortaleza esté **llena de muerte y hedor**,
+> todavía tengo a alguien de mi sangre con quien compartir un momento sencillo."*
+
+Tres enanos distintos, en tres narraciones independientes, mencionan las muertes. Y no hay
+una línea de código que lo busque: **DF mete la muerte en las emociones de quien la
+presencia**, la sonda la recoge como emoción nueva y llega al prompt. El sustrato social
+ya estaba ahí.
+
+**La otra mitad: Tirist Atírshis, la viuda, no dijo nada.** Tosid Nishkesh muere el mes 7,
+día 25; Tirist aparece en la crónica el mes 2 y el mes 4, y **no vuelve a aparecer después
+de la muerte**. Sí funcionó el aviso genérico en otro enano:
+
+> **Dôbar Avuzidith** — `has perdido a alguien importante de tu vida` → *"He perdido a
+> alguien muy importante para mí. Me duele tanto que no sé qué hacer ahora."*
+
+Así que el evento de relación **existe y dispara**. Lo que falta no es la detección: es que
+la viuda gane la competición de una narración por vuelta, y que el texto pueda decir **a
+quién** ha perdido. Lo primero es peso; lo segundo es el `id` de la relación, que ya está.
+
+> Que la reacción genérica funcione y la dirigida no, es exactamente la razón de ser de la
+> tarea de las conversaciones. Y ahora sabemos que el material está en los datos.
+
+### Defectos ya corregidos que la crónica documenta
+
+Esta crónica cruza varias versiones, así que sirve de museo de lo que ya está arreglado:
+
+| Línea | Lo que dijo | Estado |
+|---|---|---|
+| `Mi ánimo ha mejorado **de categoría 2 a 3**` | recitó la redacción del detalle | corregido |
+| `aunque **mi estrés sigue en 11440**` | recitó la cifra cruda | corregido |
+| `**¡Euphoria!** ¡Qué alegría...` | repitió el identificador del enum | corregido |
+| `placer profundo **cerca de mi propia calidad al construir**` | tradujo la caption literal | corregido |
+| Tosid y Nish, muertos, narrando en primera persona | el difunto hablaba | corregido |
+| `mientras afilo mi pico en la penumbra` | la muletilla del «mientras» | corregido |
+
+Los seis salen de la misma raíz y ninguno fue culpa del modelo.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a

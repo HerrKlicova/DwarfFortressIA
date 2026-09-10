@@ -161,6 +161,9 @@ el fallo está ahí.
 | Reutilización de `unit_id` | `unit_next_id` es un contador secuencial (5486, con el id más alto en 5483 y 5166 huecos). Indicio fuerte de que no se reciclan; aun así la memoria guarda huella |
 | Rasgos en el prompt | **8**. Medido: el numero no afecta a que suenen distintos (la metrica se invierte entre tiradas), pero si a la riqueza (26 → 29 palabras distintas de 3 a 8) |
 | Carpeta de guardados | En la version de Steam **NO** esta bajo la carpeta del juego: `%APPDATA%\Bay 12 Games\Dwarf Fortress\save` (verificado en esta instalacion). **`dfhack.getSavePath()` no devuelve esa ruta**, asi que no sirve de atajo: usar la de arriba |
+| Interfaz de DFHack en esta build | **Todo presente y medido**: `plugins.overlay`, `plugins.eventful`, `repeat-util`, `gui.widgets`; y en `dfhack.gui` están `showZoomAnnouncement`, `showPopupAnnouncement`, `getCurFocus`, `getFocusStrings`, `getSelectedUnit`, `getWidget`. **No hace falta un plugin en C++** |
+| CP437, ida y vuelta | Medido con los 15 caracteres del español: sobreviven 11; **`Á Í Ó Ú` vuelven como `?`**. El resto (`á é í ó ú ñ Ñ ü É ¿ ¡`) intactos |
+| `world.status.reports` | 2004 anotados en el año 105, y el último es `Make yarn trousers (6) has been completed`. **Está dominado por finalización de trabajos**: usarlo como fuente de sucesos exige filtrar por tipo, no drenarlo entero |
 | Coste de sondear los 64 | `sonda` 15 KB y 5 ms · `basico` 9 KB y 1 ms · `completo` **344 KB y 40 ms** (≈4 frames congelados) |
 
 ### Trampas de las APIs
@@ -223,6 +226,14 @@ el fallo está ahí.
   **Nuestra propia comprobación de acentos dio verde sin tocar este caso**: solo probó
   minúsculas (`î ê` al leer, `ú ó` al escribir). Un ✅ sobre una muestra que no incluye el
   caso difícil no es una comprobación, es una coincidencia.
+- **La cola del vector `personality.emotions` viene vacía.** DF poda las emociones viejas
+  y deja entradas con `type` y `thought` a `-1`, cuyas captions son `anything` y `none`.
+  Coger las últimas N del vector daba seis `anything none` seguidos en el prompt de un
+  enano real. Hay que **ordenar por `(year, year_tick)` y descartar las que tengan los dos
+  campos negativos**, que es lo que `enano_sonda()` ya hacía sin decirlo.
+  > No se notó porque la sonda sí elegía bien, así que el disparador del suceso llegaba
+  > correcto y la respuesta sonaba bien. Lo estropeado era el bloque de contexto. Es el
+  > mismo patrón que el epitafio vacío: **prosa buena tapando datos malos**.
 - **La memoria se guarda por partida.** Los `unit_id` vuelven a empezar en cada mundo,
   así que sin separar por `dfhack.world.ReadWorldFolder()` el enano 272 de una fortaleza
   heredaría los recuerdos del 272 de otra.

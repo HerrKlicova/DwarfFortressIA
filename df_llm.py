@@ -508,7 +508,10 @@ def construir_prompt(enano, instruccion=None, recuerdos=None, tope_rasgos=None):
         partes.append("Rasgos tuyos que destacan: "
                       + ", ".join("%s (%d de 100)" % (_txt(r), r["v"]) for r in rasgos) + ".")
 
-    pens = (enano.get("pensamientos") or [])[-TOPE_PENSAMIENTOS:]
+    # El lado Lua las manda ya ordenadas de mas reciente a mas antigua y sin
+    # las vacias, asi que se cogen las PRIMERAS. Con [-N:] se cogerian las
+    # mas viejas de las que vengan.
+    pens = (enano.get("pensamientos") or [])[:TOPE_PENSAMIENTOS]
     if pens:
         partes.append("Lo que has sentido ultimamente: "
                       + "; ".join(("%s %s" % (

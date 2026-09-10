@@ -245,17 +245,54 @@ local function enano_tabla(u, detalle, max_pens)
             }
         end)
 
+        -- Emociones: las MAS RECIENTES por marca de tiempo del juego, no las
+        -- ultimas del vector.
+        --
+        -- Coger las ultimas N era un fallo silencioso. En el prompt de un enano
+        -- real salieron las seis asi:
+        --   Lo que has sentido ultimamente: anything none; anything none; ...
+        -- 'anything' y 'none' son las captions del valor -1 de emotion_type y
+        -- unit_thought_type: entradas vacias que DF deja en la cola del vector
+        -- cuando poda las viejas. El bloque entero era ruido.
+        --
+        -- Por que no se noto: enano_sonda() SI elige por (year, year_tick), asi
+        -- que el disparador del suceso llegaba bien y la respuesta sonaba
+        -- correcta. El bloque estropeado era el de contexto, que no se lee tan
+        -- de cerca. Otra vez el mismo patron: prosa buena tapando datos malos.
+        local emos = {}
         cada(try(function() return alma.personality.emotions end, nil), function(m)
-            local tipo_e = try(function() return m.type end, -1)
-            local causa_e = try(function() return m.thought end, -1)
+            local tipo_e  = math.floor(try(function() return m.type end, -1))
+            local causa_e = math.floor(try(function() return m.thought end, -1))
+            -- Una entrada sin tipo NI causa esta vacia: no dice nada y ocupa un
+            -- hueco de los pocos que caben en el prompt.
+            if tipo_e >= 0 or causa_e >= 0 then
+                emos[#emos + 1] = {
+                    tipo = tipo_e, causa = causa_e,
+                    a = math.floor(try(function() return m.year end, -1)),
+                    t = math.floor(try(function() return m.year_tick end, -1)),
+                    f = math.floor(try(function() return m.strength end, 0)),
+                }
+            end
+        end)
+        table.sort(emos, function(x, y)
+            if x.a ~= y.a then return x.a > y.a end
+            return x.t > y.t
+        end)
+        for i = 1, math.min(#emos, max_pens) do
+            local m = emos[i]
             e.pensamientos[#e.pensamientos + 1] = {
-                emocion     = enum('emotion_type', tipo_e),
-                emocion_txt = enum_txt('emotion_type', tipo_e),
-                causa       = enum('unit_thought_type', causa_e),
-                causa_txt   = enum_txt('unit_thought_type', causa_e),
-                fuerza      = math.floor(try(function() return m.strength end, 0)),
+                emocion     = enum('emotion_type', m.tipo),
+                emocion_txt = enum_txt('emotion_type', m.tipo),
+                causa       = enum('unit_thought_type', m.causa),
+                causa_txt   = enum_txt('unit_thought_type', m.causa),
+                fuerza      = m.f,
+                a           = m.a,
+                t           = m.t,
             }
-        end, max_pens)
+        end
+        -- Cuantas habia en total y cuantas estaban vacias: si esto vuelve a
+        -- pasar, se ve en el JSON en vez de en el prompt.
+        e.emo_utiles = #emos
 
         cada(try(function() return alma.preferences end, nil), function(p)
             local tp = try(function() return p.type end, -1)
