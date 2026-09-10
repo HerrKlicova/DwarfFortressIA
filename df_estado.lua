@@ -160,16 +160,27 @@ end
 -- cual funciono en 'sexo_via'. Si no se resuelve devuelve nil y el campo se
 -- OMITE: ningun valor de relleno llega al prompt.
 local function sexo_de(u)
+    -- Primero, el camino que NO exige suponer nada: 'unit.sex' es un
+    -- pronoun_type, y ese enum SE NOMBRA A SI MISMO -- devuelve 'she', 'he' o
+    -- 'it'. Nada de mapear 0 y 1 de memoria, que es donde se cuela el error.
+    local pron = enum('pronoun_type', try(function() return u.sex end, nil))
+    if pron == 'she' then return 'f', 'pronoun_type=she' end
+    if pron == 'he'  then return 'm', 'pronoun_type=he'  end
+
+    -- Segundo, funciones cuyo NOMBRE dice lo que devuelven.
     if try(function() return dfhack.units.isFemale(u) end, nil) == true then
         return 'f', 'isFemale'
     end
     if try(function() return dfhack.units.isMale(u) end, nil) == true then
         return 'm', 'isMale'
     end
+
+    -- Ultimo recurso: el numero crudo. Se marca como SUPUESTO en 'sexo_via'
+    -- porque aqui si hay una suposicion y tiene que verse desde fuera.
     local s = tonumber(try(function() return u.sex end, nil))
-    if s == 0 then return 'f', 'unit.sex' end
-    if s == 1 then return 'm', 'unit.sex' end
-    return nil, 'sin resolver'
+    if s == 0 then return 'f', 'unit.sex=0 (SUPUESTO)' end
+    if s == 1 then return 'm', 'unit.sex=1 (SUPUESTO)' end
+    return nil, 'sin resolver (u.sex=' .. tostring(s) .. ')'
 end
 
 -- Recorre un vector de DF de forma segura. 0-INDEXADO: 0..n-1.

@@ -1420,17 +1420,19 @@ Y hay un detalle que vale la pena mirar: entre las emociones de Tirist está
 material para que la viuda hable estaba ahí todo el tiempo; lo que faltaba era llevarlo al
 prompt.
 
-### El género: dos errores en dos frases
+### El género: el modelo tira una moneda, y una distinta por frase
 
-Tirist Atírshis es **mujer**. Con el prompt de esa misma tirada, el modelo escribió:
+Sin el sexo en el prompt, el mismo par de enanos salió con géneros **contradictorios entre
+tiradas**:
 
-> *"Aunque no dejo de pensar en Tosid y en lo mucho que me gustaría volver a **verla**"*
+> *"Tirist merece algo mejor que **un marido** que se queda mirando el vacío"* — Tosid
+>
+> *"...lo mucho que me gustaría volver a **verla**"* — Tirist, hablando de Tosid
+>
+> *"Tirist Atírshis, minero de treinta y cuatro años, **esposo** de Tosid Nishkesh"* — la
+> crónica
 
-Tosid es su **marido** —él mismo se llamó *"un marido que se queda mirando el vacío"* en
-la medición de rasgos—. Y el epitafio:
-
-> *"Tirist Atírshis, minero de treinta y cuatro años, **esposo** de Tosid Nishkesh"*
-
+No es que acierte o falle: **no tiene el dato y lo sortea cada vez**.
 **Ninguno de los dos géneros estaba en el prompt.** No se los inventó por capricho: no
 tenía el dato. `spouse` no dice esposo ni esposa, `Miner` está en inglés y no marca nada,
 y el sexo del enano no se extraía.
@@ -1441,9 +1443,11 @@ entera en vez de traducir frases.
 
 Corregido en tres sitios:
 
-1. `sexo_de()` en el lado Lua, con dos caminos (`isFemale`/`isMale` y `unit.sex`) y
-   `sexo_via` en el JSON para saber cuál funcionó. **Si no se resuelve, el campo se
-   omite** — ningún valor de relleno.
+1. `sexo_de()` en el lado Lua. El camino principal lee `unit.sex` como **`pronoun_type`**,
+   un enum que **se nombra a sí mismo**: devuelve `she` o `he`, así que no hay que mapear
+   un 0 y un 1 de memoria —que es justo donde se cuela un error invertido y silencioso—.
+   Detrás quedan `isFemale`/`isMale`, y en último lugar el número crudo, marcado como
+   `(SUPUESTO)` en `sexo_via` para que se vea. **Si no se resuelve, el campo se omite.**
 2. El sexo de **cada relación** también: `Tosid Nishkesh (spouse, hombre)`. El género de
    «esposo» depende del otro, no de quien habla.
 3. Instrucción explícita (*"Eres MUJER: habla de ti en femenino"*). Dar el dato sin pedir
@@ -1455,6 +1459,23 @@ un dato de DF. Reescrita en sustantivos: *"por dentro sientes una gran calma"*.
 
 > Cada frase que escribimos nosotros en el prompt es tan revisable como las que escribe el
 > modelo. Cuatro de los cinco defectos de texto venían del prompt; este es el quinto.
+
+### Y un error mío al documentarlo: prosa generada tomada por dato
+
+Al escribir el hallazgo puse *"Tirist Atírshis es **mujer**"* y lo apoyé en que Tosid se
+había llamado a sí mismo *"un marido"*. Pero **esa frase la escribió el modelo sin tener
+el dato**: era exactamente una de las tiradas de moneda que el hallazgo denunciaba.
+
+Usé la salida del modelo como evidencia de un hecho del mundo, en la misma página donde
+estaba explicando que no se puede hacer eso.
+
+Con el sexo ya extraído de DF, la tirada de comprobación dice `Eres HOMBRE` para Tirist y
+`(spouse, mujer)` para Tosid — **al revés de lo que yo había afirmado**. Cuál de los dos
+es cierto lo dice la ficha del enano en el juego, no una narración; queda por mirar.
+
+> La regla 1 —cada afirmación con su ancla— se aplica a lo que escribimos nosotros
+> exactamente igual que a lo que escribe el modelo. Es el segundo defecto de esta ronda
+> que no es del LLM sino del prompt o del documento.
 
 ### El cronista se inventó cómo murió
 

@@ -720,6 +720,10 @@ def orden_hablar(df, args):
         print("\n--- %s, %s, %s anos (%d caracteres de prompt)"
               % (enano.get("nombre"), enano.get("profesion", "?"),
                  enano.get("edad", "?"), len(prompt)))
+        # De donde salio el sexo. Si pone (SUPUESTO) o "sin resolver", el
+        # genero del prompt no esta respaldado y hay que mirarlo en el juego.
+        print("    sexo: %s   via: %s"
+              % (enano.get("sexo", "(no viene)"), enano.get("sexo_via", "?")))
         if ver_prompt:
             for linea in prompt.splitlines():
                 print("    | " + linea)

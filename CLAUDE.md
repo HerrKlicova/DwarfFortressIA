@@ -235,9 +235,11 @@ el fallo está ahí.
   > correcto y la respuesta sonaba bien. Lo estropeado era el bloque de contexto. Es el
   > mismo patrón que el epitafio vacío: **prosa buena tapando datos malos**.
 - **El español marca género en casi cada frase, y sin el dato el modelo lo inventa.**
-  Medido con Tirist Atírshis, que es mujer: la crónica la llamó *"**esposo** de Tosid"* y
-  ella misma dijo de su marido *"me gustaría volver a **verla**"*. Dos géneros mal en dos
-  frases, porque el prompt no llevaba el sexo de nadie.
+  Con Tirist Atírshis y su cónyuge Tosid, sin sexo en el prompt, el modelo se contradijo
+  **entre dos tiradas del mismo par**: en una Tosid se llamó a sí mismo *"un marido"*, en
+  otra Tirist habló de él diciendo *"volver a **verla**"*, y la crónica escribió
+  *"**esposo** de Tosid"*. No es que acierte o falle: es que **tira una moneda cada vez**,
+  y una moneda distinta por frase.
   Hace falta el de **los dos**: el del que habla y el de cada relación —`spouse` no dice
   si es esposo o esposa, y el oficio viene en inglés, que tampoco lo marca. Va explícito
   (*"Eres MUJER: habla de ti en femenino"*), no implícito: decir el dato sin pedir la
@@ -245,6 +247,17 @@ el fallo está ahí.
   Y el castellano **nuestro** también cuenta: *"te sientes muy tranquilo"* era masculino
   para toda la fortaleza. Las frases propias van en **sustantivos**, no en adjetivos
   (*"por dentro sientes una gran calma"*).
+  El sexo se saca de `unit.sex` leído como **`pronoun_type`**, que es un enum que **se
+  nombra a sí mismo**: devuelve `she` o `he`, no un 0 y un 1 que haya que mapear de
+  memoria. El camino usado va en `sexo_via` para poder verlo desde fuera, y cuando hay que
+  suponer algo, la cadena lo dice.
+- **No usar prosa generada como si fuera un dato.** Al documentar lo anterior escribí
+  *"Tirist es mujer"* — y mi única fuente era **una frase que el propio modelo había
+  escrito sin tener el dato**. Es circular: se toma la moneda del modelo por evidencia y
+  se convierte en un hecho del proyecto. Un hecho sobre el mundo del juego solo vale si
+  sale del estado de DF o de la pantalla del juego.
+  > La regla 1 de la doctrina —cada afirmación con su ancla— **también se aplica a lo que
+  > escribimos nosotros**, no solo a lo que escribe el modelo.
 - **Si el prompt no dice cómo pasó algo, el modelo lo rellena.** El epitafio decía solo
   *"ha muerto"* y el cronista escribió *"murió **mientras trabajaba en las minas**"* —y
   luego añadió *"sin que se conozcan más detalles"*, después de haber dado el sitio por
