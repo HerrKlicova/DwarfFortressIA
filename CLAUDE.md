@@ -170,6 +170,23 @@ el fallo está ahí.
 
 - **`showAnnouncement` ignora el `\n`.** Un texto con saltos sale como un solo anuncio
   en una línea. Para varias líneas, **una llamada por línea**.
+- **Hay dos canales de salida, y son la diferencia entre contar y molestar.** Firmas
+  verificadas en `docs/dev/Lua API.rst`:
+  `showZoomAnnouncement(type, pos, text[, color[, is_bright]])` — sale en el panel **y**
+  guarda una posición, así que el jugador salta la cámara al enano desde el mensaje; y
+  `writeToGamelog(text)`, que escribe *«sin hacer un anuncio»*.
+  **Noticia** (muerte, locura, desaparición, relación) va al panel, con posición y color
+  propio. **Ambiente** (emociones, ánimo, llegadas) va al gamelog y a la crónica, y **no
+  interrumpe**. Con todo por el panel, 128 ciudadanos daban un anuncio cada 20 s sin
+  parar —unos 540 en tres horas— compitiendo con los avisos del propio juego, que son los
+  que hay que leer para no perder la fortaleza.
+  El descanso es **por canal**: con uno solo global, una muerte se quedaba esperando
+  detrás de un cambio de humor.
+  El `type` de `showZoomAnnouncement` es un `df.announcement_type`; **no se adivina un
+  nombre**, se prueban candidatos y se usa el primero que exista en la build, cayendo a
+  `showAnnouncement` si ninguno resuelve. El camino usado vuelve en `via`.
+  > El amarillo (14) es el color de los avisos de DF. Las líneas del LLM van en otro,
+  > para poder separarlas de un vistazo.
 - **`json.encode` de DFHack usa `pretty=true` con tabulador por defecto.** Pasar
   siempre `{pretty = false}`.
 - **Player2 devuelve `422`, no el `400` que promete su OpenAPI**, cuando la entrada no

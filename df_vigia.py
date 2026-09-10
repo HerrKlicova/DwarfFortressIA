@@ -5,6 +5,7 @@ df_vigia.py -- el servicio. Mira la fortaleza y hace hablar a quien le pasa algo
   python df_vigia.py                     sondea cada 5 s, anuncia y escribe cronica
   python df_vigia.py --cada 10           otro intervalo
   python df_vigia.py --seco              no escribe en el juego (solo consola y cronica)
+  python df_vigia.py --todo-al-panel     el ambiente tambien interrumpe en el panel
   python df_vigia.py --vueltas 20        para despues de N vueltas, para probar
 
 Ctrl+C cierra limpio.
@@ -41,8 +42,35 @@ import df_memoria
 
 # --- que se considera digno de contarse -------------------------------
 FUERZA_MINIMA = 30        # fuerza de la emocion por debajo de la cual se ignora
-DESCANSO_GLOBAL = 20      # segundos minimos entre dos llamadas al LLM
 DESCANSO_ENANO = 900      # un mismo enano no vuelve a hablar hasta pasado esto
+
+# --- DOS CANALES ------------------------------------------------------
+# Con 128 ciudadanos el vigia narraba una vez cada 20 segundos SIN PARAR,
+# saturando el descanso global: en tres horas, unos 540 anuncios compitiendo
+# con los avisos del propio juego, que son los que hay que leer para no perder
+# la fortaleza.
+#
+#   noticia   muerte, locura, desaparicion, relacion. Es NOTICIA: va al panel
+#             de anuncios, en color propio, y CON POSICION, asi que el jugador
+#             puede saltar la camara al enano desde el mensaje.
+#   ambiente  emociones y estado de animo. NO interrumpe: va al gamelog con
+#             writeToGamelog y a la cronica. Se lee cuando se quiere.
+CANALES = {
+    "muerte": "noticia", "locura": "noticia", "desaparicion": "noticia",
+    "relacion": "noticia",
+    "emocion_fuerte": "ambiente", "estres": "ambiente",
+    "emocion": "ambiente", "llegada": "ambiente",
+}
+
+# Cada canal con su propio descanso. Lo importante no es que el ambiente sea
+# mas lento, sino que UNA MUERTE NO SE QUEDE ESPERANDO detras de una emocion:
+# con un solo descanso global, cualquier cosa bloqueaba a cualquier otra.
+DESCANSO = {"noticia": 10, "ambiente": 90}
+
+# Valores medidos con el subcomando 'ui' en esta build. El amarillo (14) es el
+# de los avisos del propio juego: las lineas del LLM van en otro color para
+# poder separarlas de un vistazo.
+COLOR = {"noticia": 13, "ambiente": 7}      # LIGHTMAGENTA, GREY
 MAX_TOKENS = 160          # la latencia va con lo que escribe, no con lo que lee
 VENTANA_REPETIDOS = 5     # no repetir el mismo suceso aunque le pase a otro enano
 
@@ -70,14 +98,15 @@ def ahora():
 
 class Vigia(object):
 
-    def __init__(self, df, memoria, seco=False, cada=5.0):
+    def __init__(self, df, memoria, seco=False, cada=5.0, todo_al_panel=False):
         self.df = df
         self.memoria = memoria
         self.seco = seco
         self.cada = cada
+        self.todo_al_panel = todo_al_panel   # para volver al comportamiento viejo
         self.p2 = None                 # perezoso: no se toca Player2 hasta que hace falta
         self.antes = None              # sondeo anterior
-        self.ultima_llamada = 0.0
+        self.ultimo_canal = {}         # canal -> cuando se uso por ultima vez
         self.ultimo_de = {}            # clave -> cuando hablo por ultima vez
         self.recientes = []            # ultimos detalles narrados, por CUALQUIER enano
         self.cronica = None
@@ -252,12 +281,14 @@ class Vigia(object):
         Aqui es donde entrarian acciones nuevas cuando el LLM pueda actuar."""
         if not eventos:
             return []
-        if ahora() - self.ultima_llamada < DESCANSO_GLOBAL:
-            return []
-
         candidatos = []
         for e in eventos:
             clave = e["clave"]
+            # El descanso es POR CANAL. Con uno solo global, una muerte se
+            # quedaba esperando detras de un cambio de humor.
+            canal = CANALES.get(e["tipo"], "ambiente")
+            if ahora() - self.ultimo_canal.get(canal, 0) < DESCANSO.get(canal, 20):
+                continue
             if ahora() - self.ultimo_de.get(clave, 0) < DESCANSO_ENANO:
                 continue
             huella = df_memoria.huella_de(e["enano"])
@@ -384,8 +415,10 @@ class Vigia(object):
         evento["participantes"] = [evento["clave"]] + otros
 
     def _decir(self, evento, enano, huella, prompt, estado):
-        """Llama al LLM, anuncia, apunta en la cronica y en la memoria."""
+        """Llama al LLM, lo manda por SU canal, y lo apunta en la cronica y en
+        la memoria."""
         clave = evento["clave"]
+        canal = CANALES.get(evento["tipo"], "ambiente")
         self.p2 = self.p2 or df_llm.Player2()
         t0 = time.perf_counter()
         try:
@@ -406,18 +439,19 @@ class Vigia(object):
         if texto is None:
             print("  [%s] %s: respuesta descartada entera, no se anuncia"
                   % (evento["tipo"], enano.get("nombre")))
-            self.ultima_llamada = ahora()      # el gasto ya se hizo
+            self.ultimo_canal[canal] = ahora()   # el gasto ya se hizo
             return
 
-        self.ultima_llamada = ahora()
+        self.ultimo_canal[canal] = ahora()
         self.ultimo_de[clave] = ahora()
         self.recientes.append(evento["detalle"])
         del self.recientes[:-VENTANA_REPETIDOS]
 
         cuando = {"anio": estado.get("anio", -1), "mes": estado.get("mes", -1),
                   "dia": estado.get("dia", -1)}
-        print("  [%s] %s (%.2f s): %s"
-              % (evento["tipo"], enano.get("nombre"), dt, Cronica._plano(texto)))
+        print("  [%s/%s] %s (%.2f s): %s"
+              % (canal, evento["tipo"], enano.get("nombre"), dt,
+                 Cronica._plano(texto)))
 
         # 'participantes' lleva al otro cuando el suceso implica a dos. Es el
         # gancho que df_memoria tiene puesto desde el principio para las
@@ -439,9 +473,16 @@ class Vigia(object):
         self.cronica.escribir(cuando, enano.get("nombre"), evento["detalle"], texto)
 
         if not self.seco:
+            # 'noticia' interrumpe en el panel y lleva posicion; 'ambiente' va
+            # al gamelog y no molesta. --todo-al-panel vuelve a lo de antes.
+            destino = "panel" if (canal == "noticia" or self.todo_al_panel) else "log"
+            pos = (enano.get("px", -1), enano.get("py", -1), enano.get("pz", -1))
             try:
-                r = self.df.anunciar("%s: %s" % (enano.get("nombre"), texto))
-                print("       anunciado en %d linea(s)" % r.get("lineas", 0))
+                r = self.df.anunciar("%s: %s" % (enano.get("nombre"), texto),
+                                     pos=pos, color=COLOR.get(canal),
+                                     destino=destino)
+                print("       %s: %d linea(s) por %s"
+                      % (destino, r.get("lineas", 0), r.get("via", "?")))
             except (df_llm.SinDFHack, df_llm.SinPartida) as e:
                 print("       no se pudo anunciar: %s" % e)
 
@@ -486,6 +527,8 @@ def main(argv):
     p = argparse.ArgumentParser(add_help=True, description=__doc__.splitlines()[1])
     p.add_argument("--cada", type=float, default=5.0, help="segundos entre sondeos")
     p.add_argument("--seco", action="store_true", help="no escribir en el juego")
+    p.add_argument("--todo-al-panel", action="store_true",
+                   help="mandar tambien el ambiente al panel de anuncios (como antes)")
     p.add_argument("--vueltas", type=int, default=0, help="parar tras N vueltas (0 = sin fin)")
     args = p.parse_args(argv)
 
@@ -510,7 +553,8 @@ def main(argv):
     print("Memoria: %s" % memoria.resumen())
     print("Ctrl+C para parar.\n")
 
-    vig = Vigia(df, memoria, seco=args.seco, cada=args.cada)
+    vig = Vigia(df, memoria, seco=args.seco, cada=args.cada,
+                todo_al_panel=args.todo_al_panel)
     n = 0
     try:
         while True:

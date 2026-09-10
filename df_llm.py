@@ -305,9 +305,23 @@ class DFHack(object):
         """Que fue de una unidad que ya no esta entre los ciudadanos."""
         return self._json("unidad", "id=%d" % int(id_))
 
-    def anunciar(self, texto):
-        """El lado Lua parte por saltos de linea: showAnnouncement ignora \\n."""
-        return self._json("anuncio", texto.replace("\n", "\\n"))
+    def anunciar(self, texto, pos=None, color=None, destino="panel"):
+        """Manda texto al juego. El lado Lua parte por saltos de linea, porque
+        showAnnouncement ignora \\n.
+
+        pos     (x, y, z) del enano. Con ella se usa showZoomAnnouncement y el
+                jugador puede saltar la camara al mensaje desde el panel.
+        destino 'panel' sale en el panel de anuncios; 'log' va al gamelog y NO
+                interrumpe. Es la separacion de canales.
+
+        El TEXTO va SIEMPRE el ultimo: asi una narracion con un '=' dentro no
+        se confunde con una opcion."""
+        opciones = ["destino=%s" % destino]
+        if color is not None:
+            opciones.append("color=%d" % int(color))
+        if pos and all(p is not None and p >= 0 for p in pos[:2]):
+            opciones += ["x=%d" % pos[0], "y=%d" % pos[1], "z=%d" % pos[2]]
+        return self._json("anuncio", *(opciones + [texto.replace("\n", "\\n")]))
 
 
 def _normalizar(enano):

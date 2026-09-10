@@ -296,6 +296,12 @@ local function enano_sonda(u)
         -- Categoria de estres segun DF (0 mas estresado, 6 menos). Mejor que
         -- inventarse umbrales: es la clasificacion del propio juego.
         estres_cat = math.floor(try(function() return dfhack.units.getStressCategory(u) end, -1)),
+        -- Donde esta. showZoomAnnouncement(type, pos, texto, ...) acepta una
+        -- posicion y el jugador puede saltar la camara ahi desde el panel de
+        -- anuncios. Sin esto, un mensaje no dice DONDE pasa.
+        px = math.floor(try(function() return u.pos.x end, -1)),
+        py = math.floor(try(function() return u.pos.y end, -1)),
+        pz = math.floor(try(function() return u.pos.z end, -1)),
     }
 
     -- Emociones. Cada una lleva marca de tiempo del juego (year, year_tick, de
@@ -377,6 +383,9 @@ local function enano_tabla(u, detalle, max_pens)
         hfid      = math.floor(try(function() return u.hist_figure_id end, -1)),
         nac_a     = math.floor(try(function() return u.birth_year end, -1)),
         nac_t     = math.floor(try(function() return u.birth_time end, -1)),
+        px        = math.floor(try(function() return u.pos.x end, -1)),
+        py        = math.floor(try(function() return u.pos.y end, -1)),
+        pz        = math.floor(try(function() return u.pos.z end, -1)),
     }
     local sx, via = sexo_de(u)
     if sx then e.sexo = sx end          -- si no se resuelve, no hay campo
@@ -631,11 +640,22 @@ if sub == 'enanos' then
 end
 
 -- ---------------------------------------------------------------- anuncio
+--   df_estado anuncio [x= y= z=] [color=] [destino=panel|log] <texto>
+--
+-- El TEXTO es siempre el ULTIMO argumento. Todo lo de antes son opciones, y
+-- asi no hay ambiguedad si la narracion contiene un '='.
+--
+-- Dos destinos, que es de lo que va la separacion de canales:
+--   panel  showZoomAnnouncement -- sale en el panel Y guarda la posicion, asi
+--          que el jugador puede saltar la camara al enano desde el mensaje
+--   log    writeToGamelog -- va al gamelog.txt y NO interrumpe el panel
+--
+-- Firma verificada en docs/dev/Lua API.rst:
+--   showZoomAnnouncement(type, pos, text[, color[, is_bright]])
+--   writeToGamelog(text)          "sin hacer un anuncio"
 if sub == 'anuncio' then
-    local partes = {}
-    for i = 2, #args do partes[#partes + 1] = args[i] end
-    local texto = table.concat(partes, ' ')
-    if texto == '' then fallo('sin texto'); return end
+    local texto = args[#args] or ''
+    if #args < 2 or texto == '' then fallo('sin texto'); return end
 
     -- showAnnouncement IGNORA el \n: un texto con saltos sale como una sola
     -- linea. Se parte aqui, que es donde vive el conocimiento de esa rareza.
@@ -644,18 +664,55 @@ if sub == 'anuncio' then
         if trozo ~= '' then lineas[#lineas + 1] = trozo end
     end
 
-    local puestas = 0
+    local destino = opt.destino or 'panel'
+    local color = math.floor(tonumber(opt.color) or COLOR_YELLOW)
+    local x = tonumber(opt.x)
+    local y = tonumber(opt.y)
+    local z = tonumber(opt.z)
+    local hay_pos = (x and y and z and x >= 0 and y >= 0)
+
+    -- Que valor de announcement_type usar. No se adivina un nombre: se prueban
+    -- los candidatos y se usa el primero que exista en ESTA build. Si ninguno
+    -- resuelve se cae a showAnnouncement, que no lo necesita.
+    local tipo_anuncio, tipo_via = nil, 'ninguno'
+    for _, n in ipairs({'COMBAT_STRIKE_DETAILS', 'MASTERPIECE_CRAFTED', 'D_MIGRANTS_ARRIVAL'}) do
+        local v = try(function() return df.announcement_type[n] end, nil)
+        if v ~= nil then tipo_anuncio, tipo_via = v, n; break end
+    end
+    if tipo_anuncio == nil then
+        local v = try(function() return df.announcement_type[0] end, nil)
+        if v ~= nil then tipo_anuncio, tipo_via = 0, 'indice 0' end
+    end
+
+    local puestas, via = 0, destino
     for _, l in ipairs(lineas) do
-        local ok = pcall(function()
-            dfhack.gui.showAnnouncement(a_cp437(l), COLOR_YELLOW, true)
-        end)
+        local txt = a_cp437(l)
+        local ok = false
+        if destino == 'log' then
+            ok = pcall(function() dfhack.gui.writeToGamelog(txt) end)
+            via = 'writeToGamelog'
+        else
+            if hay_pos and tipo_anuncio ~= nil then
+                ok = pcall(function()
+                    dfhack.gui.showZoomAnnouncement(tipo_anuncio,
+                        {x = math.floor(x), y = math.floor(y), z = math.floor(z or 0)},
+                        txt, color, true)
+                end)
+                if ok then via = 'showZoomAnnouncement' end
+            end
+            if not ok then          -- sin posicion, o el zoom no colo
+                ok = pcall(function() dfhack.gui.showAnnouncement(txt, color, true) end)
+                if ok then via = 'showAnnouncement' end
+            end
+        end
         if ok then puestas = puestas + 1 end
     end
 
     if puestas == #lineas and puestas > 0 then
-        responder({lineas = puestas})
+        responder({lineas = puestas, via = via, tipo_via = tipo_via})
     else
-        fallo(('solo se anunciaron %d de %d lineas'):format(puestas, #lineas))
+        fallo(('solo se anunciaron %d de %d lineas (via %s)')
+              :format(puestas, #lineas, via))
     end
     return
 end

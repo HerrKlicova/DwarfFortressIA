@@ -2238,6 +2238,61 @@ entero: `EUPHORIA Syndrome`, `su animo ha mejorado (categoria 2 a 3)`, `mi estr�
 11440`, `pleasure near his own quality building`, un muerto narrando en primera persona.
 Ninguno de esos vuelve a aparecer después del año 106.
 
+## Dos canales: lo que es noticia interrumpe, lo demás no
+
+El número que forzó esto: con 128 ciudadanos el vigía narraba **una vez cada 20 segundos
+sin parar**, saturando el descanso global. En tres horas, unos **540 anuncios**
+compitiendo con los avisos del propio juego.
+
+### Las firmas, verificadas antes de escribir código
+
+De `docs/dev/Lua API.rst`, no de memoria:
+
+```
+showZoomAnnouncement(type, pos, text[, color[, is_bright]])
+writeToGamelog(text)          "sin hacer un anuncio"
+```
+
+La segunda es la que faltaba: un sitio donde escribir **sin interrumpir**.
+
+### El reparto
+
+| Canal | Qué | Dónde | Descanso |
+|---|---|---|---|
+| **noticia** | muerte, locura, desaparición, relación | panel de anuncios, **con posición** y en `LIGHTMAGENTA` | 10 s |
+| **ambiente** | emoción, emoción fuerte, estrés, llegada | `writeToGamelog` + crónica, **no interrumpe** | 90 s |
+
+El ambiente pasa de un anuncio cada 20 s a uno cada 90: de ~540 en tres horas a ~120, y
+además **fuera del panel**.
+
+### Lo que de verdad arregla el descanso por canal
+
+No es que el ambiente sea más lento. Es que **con un solo descanso global, cualquier cosa
+bloqueaba a cualquier otra**. Comprobado con las cuatro combinaciones:
+
+```
+nada en descanso        -> muerte      (gana por peso)
+ambiente recien usado   -> muerte      (la noticia pasa igual)
+noticia recien usada    -> emocion     (el ambiente pasa igual)
+los dos recien usados   -> nada
+```
+
+Una muerte ya no espera detrás de un cambio de humor.
+
+### La posición
+
+`enano_sonda()` y `enano_tabla()` devuelven ahora `px/py/pz` de `u.pos`. Con ella, el
+anuncio de una muerte lleva el sitio y **el jugador salta la cámara ahí desde el panel** —
+que era el «dónde» que faltaba, y sin pintar un solo píxel de interfaz.
+
+El `type` que pide `showZoomAnnouncement` es un `df.announcement_type`. No se adivina un
+nombre: se prueban candidatos, se usa el primero que exista en la build, y si ninguno
+resuelve se cae a `showAnnouncement`. El camino usado vuelve en `via`, así que la consola
+dice cuál se ha ido usando.
+
+`--todo-al-panel` devuelve el comportamiento anterior, por si el reparto no convence al
+verlo en marcha.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a
