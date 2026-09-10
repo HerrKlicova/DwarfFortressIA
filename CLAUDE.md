@@ -295,6 +295,19 @@ el fallo está ahí.
   fila, una habilidad que el enano tiene, el mismo valor repetido en pensamientos
   hermanos). `SawDeadBody` no cumple eso y **no se rellena**: un nombre equivocado de un
   muerto en el prompt sería el peor fallo posible.
+- **La costura: dos hechos ciertos unidos en un tercero falso.** Con `delight after
+  watching a performance` y `sadness at being separated from a loved one` en la misma
+  lista, el modelo escribió *"me invade una alegría tonta al recordar cómo brillaba su
+  mirada **después de la última función que vimos juntos**"*.
+  Los dos ingredientes están en el prompt. **La escena compartida no.** Nadie dice que la
+  vieran juntos, ni que ella estuviera allí, ni que fuera la última.
+  Es una categoría distinta de las anteriores: no rellena un hueco, **une dos anclas y
+  produce algo que ninguna de las dos sostiene**. La regla 1 no basta contra esto, porque
+  el modelo puede señalar dos campos reales.
+  El freno no prohíbe mezclar **sentimientos** —eso es lo que hace que suene a persona—,
+  sino fabricar **sucesos**: con quién, dónde, y qué pasó antes o después.
+  > Cuantas más piezas ciertas le das, más costuras posibles hay. Esto crece con las
+  > conversaciones, no se queda igual.
 - **La memoria se guarda por partida.** Los `unit_id` vuelven a empezar en cada mundo,
   así que sin separar por `dfhack.world.ReadWorldFolder()` el enano 272 de una fortaleza
   heredaría los recuerdos del 272 de otra.

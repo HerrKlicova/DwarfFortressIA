@@ -1667,6 +1667,60 @@ Esto cambia el plan de la tarea 9. No hace falta cruzar `relationship_ids` con u
 de bajas para saber que alguien ha perdido a su pareja: **DF lo anota como emoción**, con
 su propia caption, y solo había que dejarla llegar.
 
+## El duelo llega al prompt ✅ y aparece una invención de otra clase
+
+```
+Lo que has sentido ultimamente: delight after watching a performance; satisfaction at
+work; uneasiness after an unmet need to pray or meditate; sadness at being separated
+from a loved one; pleasure near a tastefully arranged chair; uneasiness saw somebody's
+dead body.
+```
+
+Los seis huecos funcionan y **la tristeza por la pareja está dentro**. También se ve el
+relleno de plantilla trabajando: `after an unmet need to pray or meditate` y `near a
+tastefully arranged chair` —que con el emparejamiento por posición habría salido *"near a
+chair tastefully arranged"*—.
+
+Y la respuesta:
+
+> *"Echo de menos a Tosid de una forma que me aprieta el pecho, y al mismo tiempo me
+> invade una alegría tonta al recordar cómo brillaba su mirada **después de la última
+> función que vimos juntos**."*
+
+La primera mitad es exactamente lo que buscábamos. **La segunda es una invención nueva, y
+de otra clase.**
+
+### La costura
+
+`delight after watching a performance` está en el prompt. `sadness at being separated from
+a loved one` está en el prompt. **"que vimos juntos" no está**, ni que ella estuviera allí,
+ni que fuera la última, ni cómo tenía la mirada.
+
+No es rellenar un hueco, como las minas del epitafio o el `after varying`. Aquí **los dos
+ingredientes son ciertos y la unión es falsa**. El modelo puede señalar dos campos reales
+del prompt y aun así haber afirmado algo que no sostiene ninguno de los dos.
+
+La regla 1 de la doctrina —cada afirmación con su ancla— **no basta contra esto**, porque
+formalmente hay ancla. Hace falta decirlo aparte.
+
+### El freno, y lo que deliberadamente no frena
+
+Prohibir toda conexión mataría lo único que hace que esto suene a persona. Así que el
+freno separa dos cosas:
+
+- **Mezclar sentimientos**: permitido. *"Estoy en paz y a la vez le echo de menos"* es
+  interioridad, no afirmación sobre el mundo.
+- **Fabricar sucesos**: prohibido. Con quién estabas, dónde, qué pasó antes o después.
+
+> Cuantas más piezas ciertas le das, más costuras posibles hay. Esto **crece** cuando
+> entren las conversaciones: dos enanos son el doble de anclas y el cuádruple de uniones.
+
+### Cómo se mide
+
+`hablar id=N --veces=10 --seco` repite el **mismo** prompt diez veces y numera las
+respuestas. Es la herramienta de la regla 5: contar cuántas de diez fabrican una escena.
+Sin ese número no se pasa a las conversaciones.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a

@@ -13,6 +13,8 @@ corre en la misma maquina (Player2) y devuelve la respuesta al log de anuncios.
                                    imprime el prompt ENTERO y no toca el juego
   python df_llm.py hablar id=272 --epitafio
                                    lo que se anunciaria si acabara de morir
+  python df_llm.py hablar id=272 --veces=10 --seco
+                                   diez respuestas al MISMO prompt, para medir
   python df_llm.py medir [n]       n llamadas al LLM con el mismo prompt: mediana y rango
   python df_llm.py enums           que enums traen texto legible de DF
   python df_llm.py ui              que ofrece la interfaz de DFHack en esta build
@@ -599,6 +601,19 @@ def construir_prompt(enano, instruccion=None, recuerdos=None, tope_rasgos=None):
                   "sientes o piensas.")
     partes.append("Habla como hablaria una persona: NADA de cifras, porcentajes, "
                   "categorias ni nombres de sistema, aunque aparezcan arriba.")
+    # LA COSTURA. Con "delight after watching a performance" y "sadness at being
+    # separated from a loved one" en la misma lista, el modelo escribio "como
+    # brillaba su mirada despues de la ultima funcion que vimos juntos". Los dos
+    # ingredientes eran ciertos; la escena compartida, no. Nadie dice que la
+    # vieran juntos ni que estuviera alli.
+    #
+    # No se le prohibe mezclar SENTIMIENTOS -- eso es lo que hace que suene a
+    # persona. Se le prohibe fabricar SUCESOS: quien estaba, donde, y que paso
+    # antes.
+    partes.append("Lo que sientes puede mezclarse entre si, pero NO inventes escenas: "
+                  "no digas con quien estabas, ni donde ocurrio, ni que paso antes o "
+                  "despues, si no esta escrito arriba. Cada cosa que has sentido es "
+                  "suelta y no tiene por que haber pasado con nadie.")
     if genero or any(r.get("sexo") for r in rel):
         partes.append("Respeta el genero de cada persona tal como se indica arriba: "
                       "los oficios estan en ingles y no lo marcan.")
@@ -692,8 +707,14 @@ def orden_hablar(df, args):
     seco = "--seco" in args
     ver_prompt = "--prompt" in args
     epitafio = "--epitafio" in args
+    veces = 1
+    for a in args:
+        if a.startswith("--veces="):
+            veces = max(1, int(a.split("=", 1)[1]))
     ids = [a.split("=", 1)[1] for a in args if a.startswith("id=")]
     args = [a for a in args if not a.startswith("--") and not a.startswith("id=")]
+    if veces > 1:
+        seco = True          # medir no escribe en el juego
 
     if ids:
         enanos = []
@@ -729,9 +750,13 @@ def orden_hablar(df, args):
         if ver_prompt:
             for linea in prompt.splitlines():
                 print("    | " + linea)
-        t0 = time.perf_counter()
-        texto = p2.completar([{"role": "user", "content": prompt}])
-        print("    (%.2f s) %s" % (time.perf_counter() - t0, texto))
+        # --veces=N repite el MISMO prompt: es como se mide la tasa de
+        # invencion sin que cambie nada mas (regla 5 de la doctrina).
+        for vuelta in range(veces):
+            t0 = time.perf_counter()
+            texto = p2.completar([{"role": "user", "content": prompt}])
+            marca = ("  [%d/%d]" % (vuelta + 1, veces)) if veces > 1 else ""
+            print("    (%.2f s)%s %s" % (time.perf_counter() - t0, marca, texto))
         for origen, crudo in FUGAS:
             print("    [fuga] %s llego sin traducir: %r" % (origen, crudo))
         del FUGAS[:]
