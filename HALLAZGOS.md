@@ -1595,6 +1595,78 @@ unidad— y devuelve las que resuelven a algo. La caption dice cuál encaja.
 
 **Nada del prompt se ha tocado todavía.** Primero ver, luego arreglar.
 
+## `subthought` resuelto — y el duelo estaba en los datos, tapado por nuestra propia regla
+
+### La predicción falló
+
+Dije que si uno de los doce `SawDeadBody` resolvía a Tosid Nishkesh, quedaba confirmado
+todo. **No aparece.** Los once nombres son otros: Dema Asriemim, Dastot Likotnär,
+Urvad Kilrudlised, Alåth Abansákrith, Ago Snangnûng, Secen Alocnesim, Atup Gulokasp,
+Gorbe Gujegbekor Donu Cish, Chrobothlamer, Gachayrsnus, Aweme Thiwafamime.
+
+Y hay una razón para desconfiar del camino entero: **los ids de figura histórica son
+densos**, así que `df.historical_figure.find(n)` devuelve un nombre para casi cualquier
+número. Que resuelva no prueba nada. Se ve en las filas pequeñas: `sub=17` también
+«resuelve» a *Dema Oñecorma*, y ahí 17 es claramente un tipo de relación.
+
+**`SawDeadBody` se queda sin rellenar.** Poner el nombre equivocado de un muerto en el
+prompt sería el peor fallo posible de todos los que llevamos. Se queda en
+`saw somebody's dead body`, que es cierto.
+
+### Cuatro huecos sí quedan confirmados, y por coherencia
+
+No por que «resuelvan», sino porque **cuadran con otro dato del mismo enano**:
+
+| Hueco | `sub` | Resuelve a | Por qué se acepta |
+|---|---|---|---|
+| `[varying]` | 8 | `need=BeWithFriends` | la emoción de esa fila es **LONELINESS** |
+| `[varying]` | 2 | `need=PrayOrMeditate` | la emoción es UNEASINESS |
+| `[skill]` | 15 | `skill=CLOTHESMAKING` | Tirist **tiene** Clothes Making entre sus habilidades |
+| `[building]` | 8 | `edificio=Door` | y `[building]` de otra fila da Table, Chair |
+| `[relation]` | 17 | `rel=AcquaintancePassing` | ese mismo 17 sale en los **tres** pensamientos sociales |
+
+`getThoughtText`, `getThoughtDescription` y `getUnitThought` **no existen**: confirmado, no
+hay atajo.
+
+### Y dos fallos en mi propio relleno, que el test destapó antes de que llegaran al juego
+
+Probando la función con las captions **reales** medidas:
+
+1. Emparejaba el valor con **el primer hueco libre**, no con el que le tocaba.
+   `near a [quality] tastefully arranged [building]` con `table` daba
+   *"near a table tastefully arranged"*. Ahora se empareja por el **nombre** del hueco.
+2. `after [varying]` con `be with friends` daba *"after be with friends"*, que no es
+   inglés. El tipo de pensamiento se llama `NeedsUnfulfilled`, así que se redacta
+   *"after an unmet need to be with friends"* — describirlo, no inventarlo.
+
+Y `due to [syndrome]` se descarta entero: sin el hueco queda *"due to"*, colgando.
+Antes salía *"due to syndrome"*, que es de donde venía el *"¡Euphoria!"*.
+
+## El duelo estaba ahí desde el principio, y lo tapaba nuestra regla de selección
+
+Entre las 72 filas, dos veces:
+
+```
+SADNESS   LoveSeparated   'at being separated from a loved one'
+```
+
+**Sin hueco, sin ambigüedad, sin nada que resolver.** Es la viuda —o el viudo— y estaba
+en la primera medición, mientras yo perseguía `SawDeadBody`.
+
+**Por qué no llegó nunca al prompt:** seleccionábamos los seis pensamientos **solo por
+recencia**, y este enano tiene **veintiuna** entradas de `WatchPerform`. La tristeza por
+la pareja quedaba enterrada bajo el teatro.
+
+> Lo más reciente no es lo que más pesa. Un prompt que solo mira el reloj cuenta las
+> funciones de teatro y se calla el duelo.
+
+Corregido: **mitad de los huecos por recencia, mitad por fuerza**. Lo que acaba de pasar
+sigue entrando, y lo que pesa deja de perderse.
+
+Esto cambia el plan de la tarea 9. No hace falta cruzar `relationship_ids` con una lista
+de bajas para saber que alguien ha perdido a su pareja: **DF lo anota como emoción**, con
+su propia caption, y solo había que dejarla llegar.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a

@@ -284,6 +284,17 @@ el fallo está ahí.
   cierto en la primera frase. Hay que **prohibirlo explícitamente**: *"no inventes dónde
   ni cómo ocurrió; si no está escrito, no se sabe"*. Es la regla 1 de la doctrina, y el
   hueco de información es lo que la dispara.
+- **Seleccionar pensamientos solo por recencia entierra lo que importa.** Un enano con
+  21 entradas de `WatchPerform` dejaba fuera del prompt su `SADNESS / at being separated
+  from a loved one` — el duelo por su pareja. Se coge **mitad por recencia y mitad por
+  fuerza**: lo que acaba de pasar sigue entrando y lo que pesa deja de perderse.
+- **Que un `subthought` «resuelva» no prueba que sea eso.** Los ids de figura histórica
+  son densos, así que `df.historical_figure.find(n)` devuelve un nombre para casi
+  cualquier número — `sub=17` «resuelve» a una figura y ahí 17 es un tipo de relación. Un
+  hueco solo se rellena cuando **cuadra con otro dato del mismo enano** (la emoción de la
+  fila, una habilidad que el enano tiene, el mismo valor repetido en pensamientos
+  hermanos). `SawDeadBody` no cumple eso y **no se rellena**: un nombre equivocado de un
+  muerto en el prompt sería el peor fallo posible.
 - **La memoria se guarda por partida.** Los `unit_id` vuelven a empezar en cada mundo,
   así que sin separar por `dfhack.world.ReadWorldFolder()` el enano 272 de una fortaleza
   heredaría los recuerdos del 272 de otra.

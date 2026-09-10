@@ -105,6 +105,53 @@ end
 -- Texto legible de un valor de enum. DF trae captions de verdad para algunos
 -- enums (unit_thought_type tiene 281 con prosa como "after seeing somebody
 -- die"); cuando no hay, se humaniza el identificador. Nunca se inventa.
+-- QUE RELLENA CADA HUECO, por el NOMBRE del hueco y no por su posicion.
+-- Emparejar por posicion era un error: 'near a [quality] [building]' con el
+-- valor 'door' daba "near a door" y 'near a [quality] tastefully arranged
+-- [building]' daba "near a table tastefully arranged". El nombre del hueco dice
+-- de que tipo es, asi que se usa eso.
+--
+-- Solo estan los CONFIRMADOS por la medicion, cada uno por coherencia con otro
+-- dato del mismo enano:
+--   [varying]  sub=8  -> need=BeWithFriends,  y la emocion era LONELINESS
+--   [skill]    sub=15 -> skill=CLOTHESMAKING, y el enano tiene esa habilidad
+--   [building] sub=8  -> edificio=Door
+--   [relation] sub=17 -> rel=AcquaintancePassing, y ese mismo 17 sale en los
+--                        tres pensamientos sociales del enano
+--
+-- SawDeadBody NO se rellena: 'histfig' es lo unico que resuelve en ese rango,
+-- pero eso no lo prueba -- los ids de figura son densos y casi cualquier numero
+-- devuelve un nombre. Meter el nombre EQUIVOCADO de un muerto en el prompt
+-- seria el peor fallo posible, asi que se queda en "saw somebody's dead body",
+-- que es cierto.
+local HUECO_TIPO = {
+    varying  = 'need_type',
+    skill    = 'job_skill',
+    building = 'building_type',
+    relation = 'unit_relationship_type',
+}
+
+-- Como se lee el valor ya resuelto dentro de la frase. 'after [varying]' con
+-- 'be with friends' daba "after be with friends", que no es ingles. El tipo de
+-- pensamiento se llama NeedsUnfulfilled, asi que decirlo es describirlo, no
+-- inventarlo.
+local HUECO_FORMA = {
+    varying = function(v) return 'an unmet need to ' .. v end,
+}
+
+-- Huecos que se pueden dejar como palabra porque son indefinidos de verdad en
+-- ingles: "saw somebody's dead body" se lee bien y no afirma nada falso.
+local HUECO_GENERICO = {somebody = true}
+
+-- Si al quitar los huecos la frase acaba en una de estas, se ha quedado
+-- colgando ('due to', 'after') y no se manda. Lista cerrada, no heuristica.
+local COLGANDO = {
+    ['after'] = true, ['due'] = true, ['to'] = true, ['of'] = true, ['near'] = true,
+    ['with'] = true, ['in'] = true, ['on'] = true, ['at'] = true, ['from'] = true,
+    ['by'] = true, ['a'] = true, ['an'] = true, ['the'] = true, ['upon'] = true,
+    ['about'] = true, ['for'] = true,
+}
+
 local function enum_txt(tipo, valor)
     local cap = try(function() return df[tipo].attrs[valor].caption end, nil)
     if type(cap) == 'string' and cap ~= '' then
@@ -159,6 +206,37 @@ end
 -- Dos caminos porque no esta comprobado cual existe en esta build, y se apunta
 -- cual funciono en 'sexo_via'. Si no se resuelve devuelve nil y el campo se
 -- OMITE: ningun valor de relleno llega al prompt.
+-- Rellena los huecos de una caption y decide si vale la pena mandarla.
+-- Devuelve nil si la frase se queda coja: mejor un pensamiento menos que un
+-- pensamiento a medias, porque un hueco en el prompt lo rellena el modelo.
+local function causa_legible(causa_id, sub)
+    local cap = try(function()
+        return df.unit_thought_type.attrs[causa_id].caption end, nil)
+    if type(cap) ~= 'string' or cap == '' then return nil end
+    if not cap:find('%[') then return cap end
+
+    local salida = cap:gsub('%[(.-)%]', function(hueco)
+        local tipo = HUECO_TIPO[hueco]
+        if tipo and type(sub) == 'number' and sub >= 0 then
+            local v = try(function() return df[tipo][sub] end, nil)
+            if type(v) == 'string' and v ~= '' then
+                local txt = humanizar(v)
+                local forma = HUECO_FORMA[hueco]
+                return forma and forma(txt) or txt
+            end
+        end
+        if HUECO_GENERICO[hueco] then return hueco end
+        return ''                      -- hueco que no se puede rellenar: fuera
+    end)
+
+    salida = salida:gsub('%s+', ' '):gsub('^%s+', ''):gsub('%s+$', '')
+    salida = salida:gsub(" 's", "'s")  -- por si el hueco iba pegado al genitivo
+    if salida == '' then return nil end
+    local ultima = salida:match('(%a+)%s*$')
+    if ultima and COLGANDO[ultima:lower()] then return nil end
+    return salida
+end
+
 local function sexo_de(u)
     -- Primero, el camino que NO exige suponer nada: 'unit.sex' es un
     -- pronoun_type, y ese enum SE NOMBRA A SI MISMO -- devuelve 'she', 'he' o
@@ -315,39 +393,61 @@ local function enano_tabla(u, detalle, max_pens)
                 }
             end
         end)
-        table.sort(emos, function(x, y)
+        -- MITAD POR RECIENTE, MITAD POR FUERZA.
+        --
+        -- Con solo recencia, la tristeza de este enano por estar separado de su
+        -- pareja (SADNESS / LoveSeparated) quedaba fuera del prompt, enterrada
+        -- bajo VEINTIUNA entradas de 'after watching a performance'. Lo mas
+        -- reciente no es lo que mas pesa, y un prompt que solo mira el reloj
+        -- cuenta el teatro y se calla el duelo.
+        local vistas, sin_hueco = {}, {}
+
+        local function mete(m)
+            if #e.pensamientos >= max_pens then return end
+            local clave = m.tipo .. ':' .. m.causa
+            if vistas[clave] then return end
+            -- La causa pasa por causa_legible(): rellena los huecos de la
+            -- plantilla y devuelve nil si la frase se queda coja.
+            local causa_txt = nil
+            if m.causa >= 0 then
+                causa_txt = causa_legible(m.causa, m.sub)
+                if not causa_txt then return end     -- coja: no se manda
+            end
+            vistas[clave] = true
+            e.pensamientos[#e.pensamientos + 1] = {
+                -- Un campo a -1 no dice nada: sus captions son 'anything' y
+                -- 'none'. Va vacio y el lado Python lo recorta.
+                emocion     = (m.tipo >= 0) and enum('emotion_type', m.tipo) or '',
+                emocion_txt = (m.tipo >= 0) and enum_txt('emotion_type', m.tipo) or '',
+                causa       = (m.causa >= 0) and enum('unit_thought_type', m.causa) or '',
+                causa_txt   = causa_txt or '',
+                fuerza      = m.f,
+                a           = m.a,
+                t           = m.t,
+                sub         = m.sub,
+            }
+        end
+
+        for i = 1, #emos do sin_hueco[i] = emos[i] end
+
+        table.sort(emos, function(x, y)          -- por recencia
             if x.a ~= y.a then return x.a > y.a end
             return x.t > y.t
         end)
-        -- Sin repetidos. DF guarda una entrada por cada vez que pasa algo, asi
-        -- que 'interest after watching a performance' salia TRES veces de las
-        -- seis que caben. Como ya estan ordenadas por recencia, la primera que
-        -- se ve de cada par (tipo, causa) es la mas nueva.
-        local vistas = {}
+        local mitad = math.ceil(max_pens / 2)
         for i = 1, #emos do
-            if #e.pensamientos >= max_pens then break end
-            local m = emos[i]
-            local clave = m.tipo .. ':' .. m.causa
-            if not vistas[clave] then
-                vistas[clave] = true
-                -- Un campo a -1 no tiene nada que decir: sus captions son
-                -- 'anything' y 'none'. Se manda vacio y el lado Python lo
-                -- recorta, en vez de escribir "anything saw somebody's dead
-                -- body" en el prompt.
-                e.pensamientos[#e.pensamientos + 1] = {
-                    emocion     = (m.tipo >= 0) and enum('emotion_type', m.tipo) or '',
-                    emocion_txt = (m.tipo >= 0) and enum_txt('emotion_type', m.tipo) or '',
-                    causa       = (m.causa >= 0) and enum('unit_thought_type', m.causa) or '',
-                    causa_txt   = (m.causa >= 0) and enum_txt('unit_thought_type', m.causa) or '',
-                    fuerza      = m.f,
-                    a           = m.a,
-                    t           = m.t,
-                    sub         = m.sub,
-                }
-            end
+            if #e.pensamientos >= mitad then break end
+            mete(emos[i])
         end
-        -- Cuantas habia en total y cuantas estaban vacias: si esto vuelve a
-        -- pasar, se ve en el JSON en vez de en el prompt.
+
+        table.sort(sin_hueco, function(x, y)     -- por fuerza, para el resto
+            return math.abs(x.f) > math.abs(y.f)
+        end)
+        for i = 1, #sin_hueco do
+            if #e.pensamientos >= max_pens then break end
+            mete(sin_hueco[i])
+        end
+
         e.emo_utiles = #emos
 
         cada(try(function() return alma.preferences end, nil), function(p)
