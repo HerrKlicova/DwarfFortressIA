@@ -52,6 +52,30 @@ end
 -- DF guarda las cadenas en CP437; el socket lleva UTF-8. Solo las cadenas de DF.
 local function dfstr(s) return dfhack.df2utf(tostring(s)) end
 
+-- CP437 no tiene A I O U con tilde. Si tiene las minusculas (a e i o u con
+-- tilde), la n con virgulilla en ambas cajas, E con tilde, u con dieresis,
+-- c cedilla, y los signos de apertura. utf2df sustituye por '?' lo que no
+-- puede mapear, asi que una frase que empiece por "Ultimamente" o nombre a
+-- "Angeles" saldria con un interrogante en el juego.
+--
+-- Nuestra comprobacion de acentos solo probo MINUSCULAS ('i' y 'e' con
+-- circunflejo al leer, 'u' y 'o' con tilde al escribir), asi que dio verde sin
+-- tocar este caso. El subcomando 'ui' lo mide de verdad en la build instalada.
+local MAYUS_SIN_GLIFO = {
+    ['\195\129'] = 'A',   -- A con tilde
+    ['\195\141'] = 'I',   -- I con tilde
+    ['\195\147'] = 'O',   -- O con tilde
+    ['\195\154'] = 'U',   -- U con tilde
+}
+
+local function a_cp437(s)
+    s = tostring(s)
+    for utf8, llano in pairs(MAYUS_SIN_GLIFO) do
+        s = s:gsub(utf8, llano)
+    end
+    return dfhack.utf2df(s)
+end
+
 -- pretty=true con tabulador es el defecto de DFHack: lo apagamos para que quepa
 -- en una linea y para no meter bytes 0x09 en el transporte.
 local function responder(t)
@@ -376,7 +400,7 @@ if sub == 'anuncio' then
     local puestas = 0
     for _, l in ipairs(lineas) do
         local ok = pcall(function()
-            dfhack.gui.showAnnouncement(dfhack.utf2df(l), COLOR_YELLOW, true)
+            dfhack.gui.showAnnouncement(a_cp437(l), COLOR_YELLOW, true)
         end)
         if ok then puestas = puestas + 1 end
     end
@@ -456,6 +480,8 @@ if sub == 'ui' then
         'showAutoAnnouncement', 'makeAnnouncement', 'writeToGamelog',
         'revealInDwarfmodeMap', 'refreshSidebar', 'getSelectedUnit',
         'getCurViewscreen', 'getDFViewscreen', 'pauseRecenter',
+        -- Para el boton: saber que mira el jugador y a quien tiene abierto.
+        'getCurFocus', 'getFocusStrings', 'getWidget', 'getSelectedItem',
     }
     for _, nombre in ipairs(candidatas) do
         local tipo = try(function() return type(dfhack.gui[nombre]) end, 'ausente')
@@ -464,10 +490,46 @@ if sub == 'ui' then
 
     -- Modulos que habria que requerir para pintar encima de la interfaz.
     for _, nombre in ipairs({'plugins.overlay', 'gui.widgets', 'gui.dwarfmode',
-                             'gui.textures', 'gui.script'}) do
+                             'gui.textures', 'gui.script',
+                             -- eventful.onReport avisa de cada anuncio nuevo:
+                             -- posible fuente de sucesos mejor que comparar sondeos.
+                             'plugins.eventful', 'repeat-util'}) do
         local ok = pcall(require, nombre)
         r.modulos[#r.modulos + 1] = {n = nombre, hay = ok and true or false}
     end
+
+    -- Ida y vuelta de verdad, no de memoria: se escribe cada caracter, se
+    -- convierte a CP437 y se vuelve a leer. Lo que no sobreviva sale aqui.
+    r.cp437 = {}
+    for _, par in ipairs({{'a con tilde', '\195\161'}, {'e con tilde', '\195\169'},
+                          {'i con tilde', '\195\173'}, {'o con tilde', '\195\179'},
+                          {'u con tilde', '\195\186'}, {'n virgulilla', '\195\177'},
+                          {'N virgulilla', '\195\145'}, {'u dieresis', '\195\188'},
+                          {'A con tilde', '\195\129'}, {'E con tilde', '\195\137'},
+                          {'I con tilde', '\195\141'}, {'O con tilde', '\195\147'},
+                          {'U con tilde', '\195\154'},
+                          {'interrogacion abre', '\194\191'},
+                          {'exclamacion abre', '\194\161'}}) do
+        local ida = try(function() return dfhack.utf2df(par[2]) end, nil)
+        local vuelta = ida and try(function() return dfhack.df2utf(ida) end, nil) or nil
+        r.cp437[#r.cp437 + 1] = {n = par[1], entra = par[2], sale = vuelta or '',
+                                 sobrevive = (vuelta == par[2])}
+    end
+
+    -- Los anuncios que el propio DF ya ha escrito, en prosa, con marca de
+    -- tiempo y posicion. Candidata a fuente de sucesos.
+    r.reports = {
+        hay = try(function() return df.global.world.status.reports ~= nil end, false),
+        n = math.floor(try(function() return #df.global.world.status.reports end, -1)),
+        ultimo = try(function()
+            local v = df.global.world.status.reports
+            local n = #v
+            if n == 0 then return '' end
+            local rep = v[n - 1]                     -- vector de DF: 0-indexado
+            return dfstr(rep.text) .. '  [id ' .. tostring(rep.id)
+                   .. ', ano ' .. tostring(rep.year) .. ']'
+        end, ''),
+    }
 
     r.screen = try(function() return type(dfhack.screen) end, 'ausente')
     r.textures = try(function() return type(dfhack.textures) end, 'ausente')

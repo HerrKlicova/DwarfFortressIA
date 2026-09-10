@@ -691,6 +691,20 @@ def orden_ui(df, _args):
         print("  [%s] %s" % ("SI" if m.get("hay") else "no", m["n"]))
     print("\ndfhack.screen: %s   dfhack.textures: %s"
           % (d.get("screen"), d.get("textures")))
+
+    rep = d.get("reports") or {}
+    print("\nworld.status.reports: %s, %s anotados"
+          % ("SI" if rep.get("hay") else "no", rep.get("n")))
+    if rep.get("ultimo"):
+        print("  el ultimo: %s" % rep["ultimo"])
+
+    malos = [c for c in d.get("cp437", []) if not c.get("sobrevive")]
+    print("\nCP437, ida y vuelta de %d caracteres del espanol:" % len(d.get("cp437", [])))
+    if malos:
+        for c in malos:
+            print("  NO sobrevive  %-20s %r -> %r" % (c["n"], c["entra"], c["sale"]))
+    else:
+        print("  sobreviven todos")
     print("\ncolores del anuncio (hoy todo sale en COLOR_YELLOW):")
     print("  " + ", ".join("%s=%s" % (c["n"], c["v"]) for c in d.get("colores", [])))
 

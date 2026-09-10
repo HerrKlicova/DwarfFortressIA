@@ -216,6 +216,13 @@ el fallo está ahí.
   número. Para cualquier cosa que implique a dos enanos (una conversación, una entrada
   de memoria compartida) hace falta ese `id`: es el único cambio de extracción que
   requiere la fase de interacciones.
+- **CP437 no tiene `Á Í Ó Ú`.** Sí tiene las minúsculas acentuadas, `ñ Ñ É ü Ü ç Ç ¿ ¡`.
+  `utf2df` sustituye por `?` lo que no puede mapear, así que una frase del modelo que
+  empiece por *"Últimamente"* o nombre a *"Ángeles"* sale con un interrogante en el juego.
+  El lado Lua las degrada a `A I O U` antes de anunciar.
+  **Nuestra propia comprobación de acentos dio verde sin tocar este caso**: solo probó
+  minúsculas (`î ê` al leer, `ú ó` al escribir). Un ✅ sobre una muestra que no incluye el
+  caso difícil no es una comprobación, es una coincidencia.
 - **La memoria se guarda por partida.** Los `unit_id` vuelven a empezar en cada mundo,
   así que sin separar por `dfhack.world.ReadWorldFolder()` el enano 272 de una fortaleza
   heredaría los recuerdos del 272 de otra.

@@ -1192,6 +1192,95 @@ no por nombre (los nombres se repiten en DF).
 Es **el único cambio de extracción** que la fase de interacciones necesita, y va en la
 misma línea que el `id=` de arriba.
 
+## Lo que aporta el proyecto del traductor
+
+Eugenio lleva en paralelo un traductor inglés→español para DF que lee el texto de la
+memoria del juego, sin OCR. Su investigación está verificada contra el código fuente de
+DFHack y `df-structures`, **no contra esta instalación**, así que aquí se anota como
+*procedente de allí* y se confirma con el subcomando `ui`. Cuatro cosas nos cambian algo.
+
+### 1. El overlay en Lua existe: el plugin en C++ se cae de la lista
+
+`overlay.OverlayWidget`, documentado en `docs/dev/overlay-dev-guide.rst`. Se registra con
+un global `OVERLAY_WIDGETS` y `--@ module = true`, y tiene `viewscreens`, `default_pos` y
+`overlay_onupdate_max_freq_seconds`.
+
+Es exactamente lo que hacía falta para pintar dentro del juego, y es **Lua, en la misma
+carpeta donde ya vive `df_estado.lua`**. Un plugin en C++ ata a compilar y se rompe con
+cada actualización de DFHack; esto no. Decisión tomada: **no se abre un proyecto de plugin
+en paralelo.**
+
+### 2. El «botón» ya existe, y es una línea
+
+```
+keybinding add Ctrl-P@dwarfmode/ViewSheets/UNIT df_estado pensar
+```
+
+DFHack ata una tecla a una **pantalla concreta** por su *focus string*. Con
+`dfhack.gui.getSelectedUnit(true)` el script sabe a quién tiene abierto el jugador.
+
+Es decir: la petición explícita no necesita que escribas un id en una consola. Abres la
+ficha de un enano, pulsas la tecla, y habla **ese**. Los tres problemas del panel de
+anuncios —de quién es, cuándo, dónde— desaparecen porque el contexto lo pone el jugador
+al preguntar.
+
+### 3. La ficha abierta trae la prosa que DF ya ha escrito
+
+`df.global.game.main_interface.view_sheets` guarda `unit_health_raw_str[0].value`
+(descripción física), `personality_raw_str` (párrafos de personalidad) y
+`raw_thought_str` (pensamientos **en prosa**). Texto completo, escrito por DF.
+
+El pero: **solo se rellena cuando el jugador abre la pestaña**. No hay API que genere esa
+prosa — el changelog de DFHack lo dice, y el script `markdown` la consigue **simulando
+clics del ratón con coordenadas fijas**, con su autor avisando de que se romperán.
+
+Para el vigía automático eso lo descarta: no vamos a simular clics. Pero para la
+**petición explícita es gratis**, porque el jugador ya está en esa pantalla y ya hizo el
+clic. Y es material mucho mejor que nuestro cóctel de enums: prosa del propio juego, que
+es la fuente mejor anclada que puede tener un prompt.
+Lleva marcado interno que hay que quitar o proteger: `[B]` párrafo, `[R]` subbloque,
+`[P]` redundante, `[C:r:g:b]` color.
+
+### 4. `world.status.reports`: DF ya nos está contando lo que pasa
+
+Cada anuncio y cada línea de combate viven en `world.status.reports[]` con `text`,
+`color`, `id`, `year`, `time` y `pos`. Y `eventful.onReport(id)` avisa de cada uno nuevo.
+
+Nosotros deducimos que alguien ha muerto **comparando dos sondeos** y preguntando después
+qué fue de él. DF lo tiene escrito, en prosa, fechado y **con la posición**. Es una fuente
+candidata mejor para toda una clase de sucesos, y drenarla es barato: guardar el último
+`id` visto y pedir los posteriores.
+
+No se cambia nada todavía: hay que medir cuántos reports genera una fortaleza por vuelta
+antes de meterlos en el bucle. Pero la comparación de sondeos deja de ser la única vía.
+
+### 5. Un fallo nuestro que sale de aquí: `Á Í Ó Ú` no existen en CP437
+
+CP437 tiene las minúsculas acentuadas, `ñ Ñ É ü Ü ç Ç ¿ ¡` — **pero no `Á Í Ó Ú`**, y
+`utf2df` sustituye por `?` lo que no puede mapear.
+
+Nuestra sección *«Acentos y CP437: confirmado en las dos direcciones ✅»* de más arriba
+**dio verde sin tocar este caso**: probó `î ê` al leer y `ú ó` al escribir, todo
+minúsculas. Una respuesta del modelo que empiece por *"Últimamente"* o nombre a
+*"Ángeles"* lleva saliendo con un interrogante en el juego.
+
+Corregido: el lado Lua las degrada a `A I O U` antes de `utf2df`. Y el subcomando `ui`
+mide el ida y vuelta de los quince caracteres del español **en la build instalada**, en
+vez de fiarse de una tabla.
+
+> La lección no es el carácter. Es que un ✅ sobre una muestra que no incluye el caso
+> difícil no es una comprobación: es una coincidencia con buena presentación.
+
+### Lo que NO adoptamos
+
+- **`RunLua`**: su documento lo da por utilizable. Aquí se midió y no sirve —filtra por
+  nombre de módulo con la condición invertida. Puede depender de la versión; en esta
+  instalación está medido y falla. Se mantiene lo medido.
+- **Barrido de `readTile`**: leer la pantalla celda a celda es su vía universal porque
+  necesitan *todo* el texto. Nosotros leemos estructuras, no píxeles ni celdas. No aplica.
+- **`luasocket` para que Lua llame fuera**: nuestro sondeo cuesta 5 ms y lo dirige Python.
+  No hay motivo para invertir la dirección.
+
 ## Cómo ejecutarlo
 
 1. Copia `dfhack_spike.lua` a
