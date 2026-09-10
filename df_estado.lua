@@ -545,7 +545,20 @@ end
 
 -- ---------------------------------------------------------------- estado
 if sub == 'estado' then
-    responder(estado_base())
+    local r = estado_base()
+    -- Los nombres de unit_relationship_type EN ORDEN. La posicion i de
+    -- 'relationship_ids' es el vinculo de tipo i, asi que con esta lista el
+    -- lado Python puede decir "tu madre" en vez de "alguien".
+    --
+    -- Va aqui, en un subcomando que se llama una vez por vuelta y que el vigia
+    -- cachea, y no en la sonda: es la misma tabla para los 128 ciudadanos.
+    r.rel_tipos = {}
+    for i = 0, 40 do
+        local n = try(function() return df.unit_relationship_type[i] end, nil)
+        if type(n) ~= 'string' then break end
+        r.rel_tipos[#r.rel_tipos + 1] = humanizar(n)
+    end
+    responder(r)
     return
 end
 

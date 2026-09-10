@@ -81,6 +81,7 @@ class Vigia(object):
         self.ultimo_de = {}            # clave -> cuando hablo por ultima vez
         self.recientes = []            # ultimos detalles narrados, por CUALQUIER enano
         self.cronica = None
+        self.rel_tipos = None          # nombres de unit_relationship_type, por indice
 
     # ---------------------------------------------------------- sondear
     def sondear(self):
@@ -178,10 +179,13 @@ class Vigia(object):
             ahora = b[i] if i < len(b) else -1
             if antes == ahora:
                 continue
+            # Se guarda el INDICE junto al id: la posicion dice el TIPO de
+            # vinculo (unit_relationship_type), que es lo que permite decir
+            # "tu madre" en vez de dejar que el modelo lo adivine.
             if ahora >= 0:
-                ganados.append(ahora)
+                ganados.append((i, ahora))
             if antes >= 0:
-                perdidos.append(antes)
+                perdidos.append((i, antes))
         return ganados, perdidos
 
     @staticmethod
@@ -323,6 +327,20 @@ class Vigia(object):
         prompt = df_llm.construir_prompt(enano, instruccion=instr, recuerdos=recuerdos)
         self._decir(evento, enano, huella, prompt, estado)
 
+    def _tipo_rel(self, indice, respaldo=None):
+        """'mother', 'spouse'... por el INDICE del hueco en relationship_ids.
+
+        La lista viene de 'estado' y se cachea: es la misma para todos los
+        ciudadanos, asi que pedirla en la sonda seria repetirla 128 veces."""
+        if self.rel_tipos is None:
+            try:
+                self.rel_tipos = self.df.estado().get("rel_tipos") or []
+            except (df_llm.SinDFHack, df_llm.SinPartida):
+                self.rel_tipos = []
+        if 0 <= indice < len(self.rel_tipos):
+            return self.rel_tipos[indice]
+        return respaldo or "alguien cercano"
+
     def _nombrar_relacion(self, evento, enano):
         """Pone nombre al vinculo que ha cambiado, y apunta al OTRO como
         participante.
@@ -337,16 +355,18 @@ class Vigia(object):
         por_id = {r.get("id"): r for r in (enano.get("relaciones") or [])}
         partes, otros = [], []
 
-        for oid in evento.get("ganados", []):
+        for i, oid in evento.get("ganados", []):
             r = por_id.get(oid)
             if r and r.get("quien"):
-                partes.append("%s (%s) ha pasado a ser importante en tu vida"
-                              % (r["quien"], r.get("txt") or r.get("tipo") or "?"))
+                partes.append("%s ha pasado a ser tu %s"
+                              % (r["quien"], self._tipo_rel(i, r.get("txt"))))
                 otros.append(oid)
 
-        for oid in evento.get("perdidos", []):
-            # El que se ha ido ya NO esta en 'relaciones': hay que preguntar por
-            # el. df.unidad() lo encuentra aunque este muerto.
+        for i, oid in evento.get("perdidos", []):
+            # El que se ha ido ya NO esta en 'relaciones', asi que ni su nombre
+            # ni su tipo salen de ahi. El nombre se pregunta con df.unidad(),
+            # que lo encuentra aunque este muerto; el TIPO sale del indice del
+            # hueco, que es lo unico que queda del vinculo.
             nombre = None
             try:
                 u = self.df.unidad(oid)
@@ -355,7 +375,7 @@ class Vigia(object):
             except (df_llm.SinDFHack, df_llm.SinPartida):
                 nombre = None
             if nombre:
-                partes.append("has perdido a %s de tu vida" % nombre)
+                partes.append("has perdido a %s, tu %s" % (nombre, self._tipo_rel(i)))
                 otros.append(oid)
 
         if partes:
